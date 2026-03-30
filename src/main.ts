@@ -1,4 +1,4 @@
-import type { OpenDialogOptions, OpenDialogReturnValue } from 'electron';
+import type { MenuItemConstructorOptions, OpenDialogOptions, OpenDialogReturnValue } from 'electron';
 import {
   app,
   App,
@@ -946,102 +946,6 @@ const showWindow = async () => {
   });
 };
 
-const buildRecentFilesMenu = () => {
-  const recentDirs = loadRecentDirs();
-  return recentDirs.map((dir) => ({
-    label: dir,
-    click: async () => {
-      await createChat(app, { dir });
-    },
-  }));
-};
-
-const openDirectoryDialog = async (): Promise<OpenDialogReturnValue> => {
-  // Get the current working directory from the focused window
-  let defaultPath: string | undefined;
-  const currentWindow = BrowserWindow.getFocusedWindow();
-
-  if (currentWindow) {
-    try {
-      const currentWorkingDir = await currentWindow.webContents.executeJavaScript(
-        `window.appConfig ? window.appConfig.get('GOOSE_WORKING_DIR') : null`
-      );
-
-      if (currentWorkingDir && typeof currentWorkingDir === 'string') {
-        // Verify the directory exists before using it as default
-        try {
-          const stats = fsSync.lstatSync(currentWorkingDir);
-          if (stats.isDirectory()) {
-            defaultPath = currentWorkingDir;
-          }
-        } catch (error) {
-          if (error && typeof error === 'object' && 'code' in error) {
-            const fsError = error as { code?: string; message?: string };
-            if (
-              fsError.code === 'ENOENT' ||
-              fsError.code === 'EACCES' ||
-              fsError.code === 'EPERM'
-            ) {
-              console.warn(
-                `Current working directory not accessible (${fsError.code}): ${currentWorkingDir}, falling back to home directory`
-              );
-              defaultPath = os.homedir();
-            } else {
-              console.warn(
-                `Unexpected filesystem error (${fsError.code}) for directory ${currentWorkingDir}:`,
-                fsError.message
-              );
-              defaultPath = os.homedir();
-            }
-          } else {
-            console.warn(`Unexpected error checking directory ${currentWorkingDir}:`, error);
-            defaultPath = os.homedir();
-          }
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to get current working directory from window:', error);
-    }
-  }
-
-  if (!defaultPath) {
-    defaultPath = os.homedir();
-  }
-
-  const result = (await dialog.showOpenDialog({
-    properties: ['openFile', 'openDirectory', 'createDirectory'],
-    defaultPath: defaultPath,
-  })) as unknown as OpenDialogReturnValue;
-
-  if (!result.canceled && result.filePaths.length > 0) {
-    const selectedPath = result.filePaths[0];
-
-    // If a file was selected, use its parent directory
-    let dirToAdd = selectedPath;
-    try {
-      const stats = fsSync.lstatSync(selectedPath);
-
-      // Reject symlinks for security
-      if (stats.isSymbolicLink()) {
-        console.warn(`Selected path is a symlink, using parent directory for security`);
-        dirToAdd = path.dirname(selectedPath);
-      } else if (stats.isFile()) {
-        dirToAdd = path.dirname(selectedPath);
-      }
-    } catch {
-      console.warn(`Could not stat selected path, using parent directory`);
-      dirToAdd = path.dirname(selectedPath); // Fallback to parent directory
-    }
-
-    addRecentDir(dirToAdd);
-
-    await createChat(app, {
-      dir: dirToAdd,
-    });
-  }
-  return result;
-};
-
 // Global error handler
 const handleFatalError = (error: Error) => {
   const windows = BrowserWindow.getAllWindows();
@@ -1697,249 +1601,113 @@ async function appMain() {
     app.dock?.setMenu(dockMenu);
   }
 
-  const menu = Menu.getApplicationMenu();
-
   const shortcuts = getKeyboardShortcuts(settings);
+  const findSubmenu: MenuItemConstructorOptions[] = [
+    {
+      label: 'Find…',
+      accelerator: shortcuts.find || undefined,
+      click() {
+        const focusedWindow = BrowserWindow.getFocusedWindow();
+        if (focusedWindow) focusedWindow.webContents.send('find-command');
+      },
+    },
+    {
+      label: 'Find Next',
+      accelerator: shortcuts.findNext || undefined,
+      click() {
+        const focusedWindow = BrowserWindow.getFocusedWindow();
+        if (focusedWindow) focusedWindow.webContents.send('find-next');
+      },
+    },
+    {
+      label: 'Find Previous',
+      accelerator: shortcuts.findPrevious || undefined,
+      click() {
+        const focusedWindow = BrowserWindow.getFocusedWindow();
+        if (focusedWindow) focusedWindow.webContents.send('find-previous');
+      },
+    },
+    {
+      label: 'Use Selection for Find',
+      accelerator: process.platform === 'darwin' ? 'Command+E' : undefined,
+      click() {
+        const focusedWindow = BrowserWindow.getFocusedWindow();
+        if (focusedWindow) focusedWindow.webContents.send('use-selection-find');
+      },
+      visible: process.platform === 'darwin',
+    },
+  ];
 
-  const editMenu = menu?.items.find((item) => item.label === 'Edit');
-  if (editMenu?.submenu) {
-    const selectAllIndex = editMenu.submenu.items.findIndex((item) => item.label === 'Select All');
+  const menuTemplate: MenuItemConstructorOptions[] = [];
 
-    const findSubmenu = Menu.buildFromTemplate([
-      {
-        label: 'Find…',
-        accelerator: shortcuts.find || undefined,
-        click() {
-          const focusedWindow = BrowserWindow.getFocusedWindow();
-          if (focusedWindow) focusedWindow.webContents.send('find-command');
-        },
-      },
-      {
-        label: 'Find Next',
-        accelerator: shortcuts.findNext || undefined,
-        click() {
-          const focusedWindow = BrowserWindow.getFocusedWindow();
-          if (focusedWindow) focusedWindow.webContents.send('find-next');
-        },
-      },
-      {
-        label: 'Find Previous',
-        accelerator: shortcuts.findPrevious || undefined,
-        click() {
-          const focusedWindow = BrowserWindow.getFocusedWindow();
-          if (focusedWindow) focusedWindow.webContents.send('find-previous');
-        },
-      },
-      {
-        label: 'Use Selection for Find',
-        accelerator: process.platform === 'darwin' ? 'Command+E' : undefined,
-        click() {
-          const focusedWindow = BrowserWindow.getFocusedWindow();
-          if (focusedWindow) focusedWindow.webContents.send('use-selection-find');
-        },
-        visible: process.platform === 'darwin', // Only show on Mac
-      },
-    ]);
-
-    editMenu.submenu.insert(
-      selectAllIndex + 1,
-      new MenuItem({
-        label: 'Find',
-        submenu: findSubmenu,
-      })
-    );
+  if (process.platform === 'darwin') {
+    menuTemplate.push({ role: 'appMenu' });
   }
 
-  const fileMenu = menu?.items.find((item) => item.label === 'File');
+  menuTemplate.push({
+    label: 'File',
+    submenu: [
+      {
+        label: 'New Chat',
+        accelerator: shortcuts.newChat || undefined,
+        click() {
+          const focusedWindow = BrowserWindow.getFocusedWindow();
+          if (focusedWindow) focusedWindow.webContents.send('new-chat');
+        },
+      },
+      { type: 'separator' },
+      process.platform === 'darwin' ? { role: 'close' } : { role: 'quit' },
+    ],
+  });
 
-  if (fileMenu?.submenu) {
-    // Use a counter to track the actual insertion index
-    let menuIndex = 0;
+  menuTemplate.push({
+    label: 'Edit',
+    submenu: [
+      { role: 'undo' },
+      { role: 'redo' },
+      { type: 'separator' },
+      { role: 'cut' },
+      { role: 'copy' },
+      { role: 'paste' },
+      ...(process.platform === 'darwin' ? [{ role: 'pasteAndMatchStyle' as const }] : []),
+      { role: 'delete' },
+      { role: 'selectAll' },
+      { type: 'separator' },
+      { label: 'Find', submenu: findSubmenu },
+    ],
+  });
 
-    if (shortcuts.newChat) {
-      fileMenu.submenu.insert(
-        menuIndex++,
-        new MenuItem({
-          label: 'New Chat',
-          accelerator: shortcuts.newChat,
-          click() {
-            const focusedWindow = BrowserWindow.getFocusedWindow();
-            if (focusedWindow) focusedWindow.webContents.send('new-chat');
-          },
-        })
-      );
-    }
-
-    if (shortcuts.newChatWindow) {
-      fileMenu.submenu.insert(
-        menuIndex++,
-        new MenuItem({
-          label: 'New Chat Window',
-          accelerator: shortcuts.newChatWindow,
-          click() {
-            ipcMain.emit('create-chat-window');
-          },
-        })
-      );
-    }
-
-    if (shortcuts.openDirectory) {
-      fileMenu.submenu.insert(
-        menuIndex++,
-        new MenuItem({
-          label: 'Open Directory...',
-          accelerator: shortcuts.openDirectory,
-          click: () => openDirectoryDialog(),
-        })
-      );
-    }
-
-    const recentFilesSubmenu = buildRecentFilesMenu();
-    if (recentFilesSubmenu.length > 0) {
-      fileMenu.submenu.insert(
-        menuIndex++,
-        new MenuItem({
-          label: 'Recent Directories',
-          submenu: recentFilesSubmenu,
-        })
-      );
-    }
-
-    fileMenu.submenu.insert(menuIndex++, new MenuItem({ type: 'separator' }));
-
-    if (shortcuts.focusWindow) {
-      fileMenu.submenu.append(
-        new MenuItem({
-          label: 'Focus Goose Window',
-          accelerator: shortcuts.focusWindow,
-          click() {
-            focusWindow();
-          },
-        })
-      );
-    }
-
-    if (shortcuts.quickLauncher) {
-      fileMenu.submenu.append(
-        new MenuItem({
-          label: 'Quick Launcher',
-          accelerator: shortcuts.quickLauncher,
-          click() {
-            createLauncher();
-          },
-        })
-      );
-    }
-  }
-
-  if (menu) {
-    let windowMenu = menu.items.find((item) => item.label === 'Window');
-
-    if (!windowMenu) {
-      windowMenu = new MenuItem({
-        label: 'Window',
-        submenu: Menu.buildFromTemplate([]),
-      });
-
-      const helpMenuIndex = menu.items.findIndex((item) => item.label === 'Help');
-      if (helpMenuIndex >= 0) {
-        menu.items.splice(helpMenuIndex, 0, windowMenu);
-      } else {
-        menu.items.push(windowMenu);
-      }
-    }
-
-    if (windowMenu.submenu) {
-      if (shortcuts.alwaysOnTop) {
-        windowMenu.submenu.append(
-          new MenuItem({
-            label: 'Always on Top',
-            type: 'checkbox',
-            accelerator: shortcuts.alwaysOnTop,
-            click(menuItem) {
-              const focusedWindow = BrowserWindow.getFocusedWindow();
-              if (focusedWindow) {
-                const isAlwaysOnTop = menuItem.checked;
-
-                if (process.platform === 'darwin') {
-                  focusedWindow.setAlwaysOnTop(isAlwaysOnTop, 'floating');
-                } else {
-                  focusedWindow.setAlwaysOnTop(isAlwaysOnTop);
+  menuTemplate.push({
+    label: 'View',
+    submenu: [
+      { role: 'reload' },
+      { role: 'forceReload' },
+      { type: 'separator' },
+      { role: 'resetZoom' },
+      { role: 'zoomIn' },
+      { role: 'zoomOut' },
+      { type: 'separator' },
+      { role: 'togglefullscreen' },
+      ...(shortcuts.toggleNavigation
+        ? [
+            { type: 'separator' as const },
+            {
+              label: 'Toggle Navigation',
+              accelerator: shortcuts.toggleNavigation || undefined,
+              click() {
+                const focusedWindow = BrowserWindow.getFocusedWindow();
+                if (focusedWindow) {
+                  focusedWindow.webContents.send('toggle-navigation');
                 }
-
-                console.log(
-                  `[Main] Set always-on-top to ${isAlwaysOnTop} for window ${focusedWindow.id}`
-                );
-              }
+              },
             },
-          })
-        );
-      }
-    }
+          ]
+        : []),
+    ],
+  });
 
-    const viewMenu = menu.items.find((item) => item.label === 'View');
-    if (viewMenu?.submenu && shortcuts.toggleNavigation) {
-      viewMenu.submenu.append(new MenuItem({ type: 'separator' }));
-      viewMenu.submenu.append(
-        new MenuItem({
-          label: 'Toggle Navigation',
-          accelerator: shortcuts.toggleNavigation,
-          click() {
-            const focusedWindow = BrowserWindow.getFocusedWindow();
-            if (focusedWindow) {
-              focusedWindow.webContents.send('toggle-navigation');
-            }
-          },
-        })
-      );
-    }
-  }
-
-  // on macOS, the topbar is hidden
-  if (menu && process.platform !== 'darwin') {
-    let helpMenu = menu.items.find((item) => item.label === 'Help');
-
-    // If Help menu doesn't exist, create it and add it to the menu
-    if (!helpMenu) {
-      helpMenu = new MenuItem({
-        label: 'Help',
-        submenu: Menu.buildFromTemplate([]), // Start with an empty submenu
-      });
-      // Find a reasonable place to insert the Help menu, usually near the end
-      const insertIndex = menu.items.length > 0 ? menu.items.length - 1 : 0;
-      menu.items.splice(insertIndex, 0, helpMenu);
-    }
-
-    // Ensure the Help menu has a submenu before appending
-    if (helpMenu.submenu) {
-      // Add a separator before the About item if the submenu is not empty
-      if (helpMenu.submenu.items.length > 0) {
-        helpMenu.submenu.append(new MenuItem({ type: 'separator' }));
-      }
-
-      // Create the About Goose menu item with a submenu
-      const aboutGooseMenuItem = new MenuItem({
-        label: 'About Goose',
-        submenu: Menu.buildFromTemplate([]), // Start with an empty submenu for About
-      });
-
-      // Add the Version menu item (display only) to the About Goose submenu
-      if (aboutGooseMenuItem.submenu) {
-        aboutGooseMenuItem.submenu.append(
-          new MenuItem({
-            label: `Version ${version || app.getVersion()}`,
-            enabled: false,
-          })
-        );
-      }
-
-      helpMenu.submenu.append(aboutGooseMenuItem);
-    }
-  }
-
-  if (menu) {
-    Menu.setApplicationMenu(menu);
-  }
+  const menu = Menu.buildFromTemplate(menuTemplate);
+  Menu.setApplicationMenu(menu);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

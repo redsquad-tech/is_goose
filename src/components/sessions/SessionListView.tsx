@@ -1,17 +1,13 @@
 import { AppEvents } from '../../constants/events';
 import React, { useEffect, useState, useRef, useCallback, useMemo, startTransition } from 'react';
 import {
-  MessageSquareText,
-  Target,
   AlertCircle,
   Calendar,
   Folder,
+  MessageSquareText,
   Edit2,
   Trash2,
-  Download,
-  Upload,
   ExternalLink,
-  Copy,
 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
@@ -27,9 +23,6 @@ import { toast } from 'react-toastify';
 import { ConfirmationModal } from '../ui/ConfirmationModal';
 import {
   deleteSession,
-  exportSession,
-  forkSession,
-  importSession,
   listSessions,
   searchSessions,
   Session,
@@ -225,7 +218,6 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
       }
     };
 
-    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const visibleDateGroups = useMemo(() => {
       return dateGroups.slice(0, visibleGroupsCount);
@@ -417,24 +409,6 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
       setShowDeleteConfirmation(true);
     }, []);
 
-    const handleDuplicateSession = useCallback(
-      async (session: Session) => {
-        try {
-          await forkSession({
-            path: { session_id: session.id },
-            body: { truncate: false, copy: true },
-            throwOnError: true,
-          });
-          toast.success(`Session "${session.name}" duplicated successfully`);
-          await loadSessions();
-        } catch (error) {
-          console.error('Error duplicating session:', error);
-          toast.error(`Failed to duplicate session: ${errorMessage(error, 'Unknown error')}`);
-        }
-      },
-      [loadSessions]
-    );
-
     const handleConfirmDelete = useCallback(async () => {
       if (!sessionToDelete) return;
 
@@ -466,56 +440,6 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
       setSessionToDelete(null);
     }, []);
 
-    const handleExportSession = useCallback(async (session: Session, e: React.MouseEvent) => {
-      e.stopPropagation();
-
-      const response = await exportSession({
-        path: { session_id: session.id },
-        throwOnError: true,
-      });
-
-      const json = response.data;
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${session.name}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success('Session exported successfully');
-    }, []);
-
-    const handleImportClick = useCallback(() => {
-      fileInputRef.current?.click();
-    }, []);
-
-    const handleImportSession = useCallback(
-      async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        try {
-          const json = await file.text();
-          await importSession({
-            body: { json },
-            throwOnError: true,
-          });
-
-          toast.success('Session imported successfully');
-          await loadSessions();
-        } catch (error) {
-          toast.error(`Failed to import session: ${error}`);
-        } finally {
-          if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-          }
-        }
-      },
-      [loadSessions]
-    );
-
     const handleOpenInNewWindow = useCallback((session: Session, e: React.MouseEvent) => {
       e.stopPropagation();
       window.electron.createChatWindow({
@@ -528,16 +452,12 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
     const SessionItem = React.memo(function SessionItem({
       session,
       onEditClick,
-      onDuplicateClick,
       onDeleteClick,
-      onExportClick,
       onOpenInNewWindow,
     }: {
       session: Session;
       onEditClick: (session: Session) => void;
-      onDuplicateClick: (session: Session) => void;
       onDeleteClick: (session: Session) => void;
-      onExportClick: (session: Session, e: React.MouseEvent) => void;
       onOpenInNewWindow: (session: Session, e: React.MouseEvent) => void;
     }) {
       const handleEditClick = useCallback(
@@ -546,14 +466,6 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
           onEditClick(session);
         },
         [onEditClick, session]
-      );
-
-      const handleDuplicateClick = useCallback(
-        (e: React.MouseEvent) => {
-          e.stopPropagation();
-          onDuplicateClick(session);
-        },
-        [onDuplicateClick, session]
       );
 
       const handleDeleteClick = useCallback(
@@ -567,13 +479,6 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
       const handleCardClick = useCallback(() => {
         onSelectSession(session.id);
       }, [session.id]);
-
-      const handleExportClick = useCallback(
-        (e: React.MouseEvent) => {
-          onExportClick(session, e);
-        },
-        [onExportClick, session]
-      );
 
       const handleOpenInNewWindowClick = useCallback(
         (e: React.MouseEvent) => {
@@ -603,20 +508,6 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
               </div>
             </div>
           </div>
-          <div className="flex items-center justify-between mt-1">
-            <div className="flex items-center space-x-3 text-xs text-text-secondary">
-              <div className="flex items-center">
-                <MessageSquareText className="w-3 h-3 mr-1" />
-                <span className="font-mono">{session.message_count}</span>
-              </div>
-              {session.total_tokens !== null && (
-                <div className="flex items-center">
-                  <Target className="w-3 h-3 mr-1" />
-                  <span className="font-mono">{(session.total_tokens || 0).toLocaleString()}</span>
-                </div>
-              )}
-            </div>
-          </div>
           <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               onClick={handleOpenInNewWindowClick}
@@ -633,25 +524,11 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
               <Edit2 className="w-3 h-3 text-text-secondary hover:text-text-primary" />
             </button>
             <button
-              onClick={handleDuplicateClick}
-              className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-              title="Duplicate session"
-            >
-              <Copy className="w-3 h-3 text-text-secondary hover:text-text-primary" />
-            </button>
-            <button
               onClick={handleDeleteClick}
               className="p-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer transition-colors"
               title="Delete session"
             >
               <Trash2 className="w-3 h-3 text-red-500 hover:text-red-600" />
-            </button>
-            <button
-              onClick={handleExportClick}
-              className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-              title="Export session"
-            >
-              <Download className="w-3 h-3 text-text-secondary hover:text-text-primary" />
             </button>
           </div>
         </Card>
@@ -742,9 +619,7 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
                     key={session.id}
                     session={session}
                     onEditClick={handleEditSession}
-                    onDuplicateClick={handleDuplicateSession}
                     onDeleteClick={handleDeleteSession}
-                    onExportClick={handleExportSession}
                     onOpenInNewWindow={handleOpenInNewWindow}
                   />
                 ))}
@@ -772,15 +647,6 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
               <div className="flex flex-col page-transition">
                 <div className="flex justify-between items-center mb-1">
                   <h1 className="text-4xl font-light">Chat history</h1>
-                  <Button
-                    onClick={handleImportClick}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <Upload className="w-4 h-4" />
-                    Import Session
-                  </Button>
                 </div>
                 <p className="text-sm text-text-secondary mb-4">
                   View and search your past conversations with Goose. {getSearchShortcutText()} to
@@ -859,15 +725,6 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
             </div>
           </div>
         </MainPanelLayout>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json"
-          onChange={handleImportSession}
-          className="hidden"
-        />
-
         <EditSessionModal
           session={editingSession}
           isOpen={showEditModal}

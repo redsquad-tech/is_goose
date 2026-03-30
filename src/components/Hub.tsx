@@ -11,8 +11,6 @@ import { UserInput } from '../types/message';
 import { MainPanelLayout } from './Layout/MainPanelLayout';
 import { ScrollArea } from './ui/scroll-area';
 import PopularChatTopics from './PopularChatTopics';
-import { Goose } from './icons';
-import EnvironmentBadge from './GooseSidebar/EnvironmentBadge';
 
 export default function Hub({
   setView,
@@ -53,21 +51,6 @@ export default function Hub({
     <div className="h-full flex flex-col min-h-0">
       <MainPanelLayout backgroundColor="bg-background-secondary" removeTopPadding>
         <div className="flex flex-col flex-1 mb-0.5 min-h-0 relative">
-          <div className="absolute top-3 right-4 z-[60] flex flex-row items-center gap-1">
-            <a
-              href="https://block.github.io/goose"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="no-drag flex flex-row items-center gap-1 hover:opacity-80 transition-opacity"
-            >
-              <Goose className="size-5 goose-icon-animation" />
-              <span className="text-sm leading-none text-text-secondary -translate-y-px">
-                goose
-              </span>
-            </a>
-            <EnvironmentBadge className="translate-y-px" />
-          </div>
-
           <ScrollArea
             className="flex-1 bg-background-primary rounded-b-2xl min-h-0 relative pr-1 pb-10 pt-10"
             paddingX={6}
