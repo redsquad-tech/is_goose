@@ -12,25 +12,20 @@ applyThemeTokens();
 const App = lazy(() => import('./App'));
 
 (async () => {
-  // Check if we're in the launcher view (doesn't need goosed connection)
-  const isLauncher = window.location.hash === '#/launcher';
-
-  if (!isLauncher) {
-    console.log('window created, getting goosed connection info');
-    const gooseApiHost = await window.electron.getGoosedHostPort();
-    if (gooseApiHost === null) {
-      window.alert('failed to start goose backend process');
-      return;
-    }
-    console.log('connecting at', gooseApiHost);
-    client.setConfig({
-      baseUrl: gooseApiHost,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Secret-Key': await window.electron.getSecretKey(),
-      },
-    });
+  console.log('window created, getting goosed connection info');
+  const gooseApiHost = await window.electron.getGoosedHostPort();
+  if (gooseApiHost === null) {
+    window.alert('failed to start goose backend process');
+    return;
   }
+  console.log('connecting at', gooseApiHost);
+  client.setConfig({
+    baseUrl: gooseApiHost,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Secret-Key': await window.electron.getSecretKey(),
+    },
+  });
 
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>

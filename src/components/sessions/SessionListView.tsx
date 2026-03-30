@@ -7,7 +7,6 @@ import {
   MessageSquareText,
   Edit2,
   Trash2,
-  ExternalLink,
 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
@@ -440,25 +439,14 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
       setSessionToDelete(null);
     }, []);
 
-    const handleOpenInNewWindow = useCallback((session: Session, e: React.MouseEvent) => {
-      e.stopPropagation();
-      window.electron.createChatWindow({
-        dir: session.working_dir,
-        resumeSessionId: session.id,
-        viewType: 'pair',
-      });
-    }, []);
-
     const SessionItem = React.memo(function SessionItem({
       session,
       onEditClick,
       onDeleteClick,
-      onOpenInNewWindow,
     }: {
       session: Session;
       onEditClick: (session: Session) => void;
       onDeleteClick: (session: Session) => void;
-      onOpenInNewWindow: (session: Session, e: React.MouseEvent) => void;
     }) {
       const handleEditClick = useCallback(
         (e: React.MouseEvent) => {
@@ -479,13 +467,6 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
       const handleCardClick = useCallback(() => {
         onSelectSession(session.id);
       }, [session.id]);
-
-      const handleOpenInNewWindowClick = useCallback(
-        (e: React.MouseEvent) => {
-          onOpenInNewWindow(session, e);
-        },
-        [onOpenInNewWindow, session]
-      );
 
       const displayName = shouldShowNewChatTitle(session) ? DEFAULT_CHAT_TITLE : session.name;
 
@@ -509,13 +490,6 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
             </div>
           </div>
           <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={handleOpenInNewWindowClick}
-              className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-              title="Open in new window"
-            >
-              <ExternalLink className="w-3 h-3 text-text-secondary hover:text-text-primary" />
-            </button>
             <button
               onClick={handleEditClick}
               className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
@@ -617,11 +591,10 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
                 {group.sessions.map((session) => (
                   <SessionItem
                     key={session.id}
-                    session={session}
-                    onEditClick={handleEditSession}
-                    onDeleteClick={handleDeleteSession}
-                    onOpenInNewWindow={handleOpenInNewWindow}
-                  />
+                          session={session}
+                          onEditClick={handleEditSession}
+                          onDeleteClick={handleDeleteSession}
+                        />
                 ))}
               </div>
             </div>

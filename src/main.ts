@@ -1,20 +1,16 @@
-import type { MenuItemConstructorOptions, OpenDialogOptions, OpenDialogReturnValue } from 'electron';
+import type { MenuItemConstructorOptions } from 'electron';
 import {
   app,
   App,
   BrowserWindow,
   dialog,
-  globalShortcut,
   ipcMain,
   Menu,
   MenuItem,
   net,
   Notification,
-  powerSaveBlocker,
-  screen,
   session,
   shell,
-  Tray,
 } from 'electron';
 import { pathToFileURL, format as formatUrl, URLSearchParams } from 'node:url';
 import { Buffer } from 'node:buffer';
@@ -31,28 +27,14 @@ import { createClient, createConfig } from './api/client';
 import { expandTilde } from './utils/pathUtils';
 import log from './utils/logger';
 import { ensureWinShims } from './utils/winShims';
-import { addRecentDir, loadRecentDirs } from './utils/recentDirs';
 import { formatErrorForLogging } from './utils/conversionUtils';
 import type { Settings, SettingKey } from './utils/settings';
 import { defaultSettings, getKeyboardShortcuts } from './utils/settings';
 import * as crypto from 'crypto';
 import windowStateKeeper from 'electron-window-state';
-import {
-  getUpdateAvailable,
-  registerUpdateIpcHandlers,
-  setTrayRef,
-  setupAutoUpdater,
-  updateTrayMenu,
-} from './utils/autoUpdater';
-import { UPDATES_ENABLED } from './updates';
 import { Client } from './api/client';
 import installExtension, { REACT_DEVELOPER_TOOLS } from 'electron-devtools-installer';
-import { BLOCKED_PROTOCOLS, WEB_PROTOCOLS } from './utils/urlSecurity';
-
-function shouldSetupUpdater(): boolean {
-  // Setup updater if either the flag is enabled OR dev updates are enabled
-  return UPDATES_ENABLED || process.env.ENABLE_DEV_UPDATES === 'true';
-}
+import { BLOCKED_PROTOCOLS } from './utils/urlSecurity';
 
 // Settings management
 const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
@@ -241,8 +223,6 @@ async function handleProtocolUrl(url: string) {
   pendingDeepLink = url;
 
   const parsedUrl = new URL(url);
-  const recentDirs = loadRecentDirs();
-  const openDir = recentDirs.length > 0 ? recentDirs[0] : null;
 
   const existingWindows = BrowserWindow.getAllWindows();
   if (existingWindows.length > 0) {
@@ -252,7 +232,7 @@ async function handleProtocolUrl(url: string) {
     }
     firstOpenWindow.focus();
   } else {
-    firstOpenWindow = await createChat(app, { dir: openDir || undefined });
+    firstOpenWindow = await createChat(app);
   }
 
   if (firstOpenWindow) {
@@ -281,9 +261,6 @@ app.on('open-url', async (_event, url) => {
 
     await app.whenReady();
 
-    const recentDirs = loadRecentDirs();
-    const openDir = recentDirs.length > 0 ? recentDirs[0] : null;
-
     // For session URLs, store the deep link for processing after React is ready
     pendingDeepLink = url;
     log.info('[Main] Stored pending deep link for processing after React ready:', url);
@@ -299,7 +276,7 @@ app.on('open-url', async (_event, url) => {
       }
     } else {
       openUrlHandledLaunch = true;
-      firstOpenWindow = await createChat(app, { dir: openDir || undefined });
+      firstOpenWindow = await createChat(app);
     }
   }
 });
@@ -345,9 +322,6 @@ async function handleFileOpen(filePath: string) {
     if (stats.isFile()) {
       targetDir = path.dirname(filePath);
     }
-
-    // Add to recent directories
-    addRecentDir(targetDir);
 
     // Create new window for the directory
     const newWindow = await createChat(app, { dir: targetDir });
@@ -457,8 +431,6 @@ let appConfig = {
 
 const windowMap = new Map<number, BrowserWindow>();
 const goosedClients = new Map<number, Client>();
-
-const windowPowerSaveBlockers = new Map<number, number>(); // windowId -> blockerId
 // Track pending initial messages per window
 const pendingInitialMessages = new Map<number, string>(); // windowId -> initialMessage
 
@@ -769,181 +741,11 @@ const createChat = async (app: App, options: CreateChatOptions = {}) => {
     // Clean up pending initial message
     pendingInitialMessages.delete(windowId);
 
-    if (windowPowerSaveBlockers.has(windowId)) {
-      const blockerId = windowPowerSaveBlockers.get(windowId)!;
-      try {
-        powerSaveBlocker.stop(blockerId);
-        console.log(
-          `[Main] Stopped power save blocker ${blockerId} for closing window ${windowId}`
-        );
-      } catch (error) {
-        console.error(
-          `[Main] Failed to stop power save blocker ${blockerId} for window ${windowId}:`,
-          error
-        );
-      }
-      windowPowerSaveBlockers.delete(windowId);
-    }
-
     if (goosedProcess && typeof goosedProcess === 'object' && 'kill' in goosedProcess) {
       goosedProcess.kill();
     }
   });
   return mainWindow;
-};
-
-let activeLauncherWindow: BrowserWindow | null = null;
-
-const createLauncher = () => {
-  if (activeLauncherWindow && !activeLauncherWindow.isDestroyed()) {
-    activeLauncherWindow.focus();
-    return activeLauncherWindow;
-  }
-
-  const launcherWindow = new BrowserWindow({
-    width: 600,
-    height: 80,
-    frame: false,
-    transparent: process.platform === 'darwin',
-    backgroundColor: process.platform === 'darwin' ? '#00000000' : '#ffffff',
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true,
-      additionalArguments: [JSON.stringify(appConfig)],
-      partition: 'persist:goose',
-    },
-    skipTaskbar: true,
-    alwaysOnTop: true,
-    resizable: false,
-    movable: true,
-    minimizable: false,
-    maximizable: false,
-    fullscreenable: false,
-    hasShadow: true,
-    vibrancy: process.platform === 'darwin' ? 'window' : undefined,
-  });
-
-  // Center on screen
-  const primaryDisplay = screen.getPrimaryDisplay();
-  const { width, height } = primaryDisplay.workAreaSize;
-  const windowBounds = launcherWindow.getBounds();
-
-  launcherWindow.setPosition(
-    Math.round(width / 2 - windowBounds.width / 2),
-    Math.round(height / 3 - windowBounds.height / 2)
-  );
-
-  // Load launcher window content
-  const url = getAppUrl();
-
-  url.hash = '/launcher';
-  launcherWindow.loadURL(formatUrl(url));
-  activeLauncherWindow = launcherWindow;
-
-  launcherWindow.on('closed', () => {
-    activeLauncherWindow = null;
-  });
-
-  // Destroy window when it loses focus
-  launcherWindow.on('blur', () => {
-    launcherWindow.destroy();
-  });
-
-  // Also destroy on escape key
-  launcherWindow.webContents.on('before-input-event', (event, input) => {
-    if (input.key === 'Escape') {
-      launcherWindow.destroy();
-      event.preventDefault();
-    }
-  });
-
-  return launcherWindow;
-};
-
-// Track tray instance
-let tray: Tray | null = null;
-
-const destroyTray = () => {
-  if (tray) {
-    tray.destroy();
-    tray = null;
-  }
-};
-
-const disableTray = () => {
-  updateSettings((s) => {
-    s.showMenuBarIcon = false;
-  });
-};
-
-const createTray = () => {
-  destroyTray();
-
-  const possiblePaths = [
-    path.join(process.resourcesPath, 'images', 'iconTemplate.png'),
-    path.join(process.cwd(), 'src', 'images', 'iconTemplate.png'),
-    path.join(__dirname, '..', 'images', 'iconTemplate.png'),
-    path.join(__dirname, 'images', 'iconTemplate.png'),
-    path.join(process.cwd(), 'images', 'iconTemplate.png'),
-  ];
-
-  const iconPath = possiblePaths.find((p) => fsSync.existsSync(p));
-
-  if (!iconPath) {
-    console.warn('[Main] Tray icon not found. App will continue without system tray.');
-    disableTray();
-    return;
-  }
-
-  try {
-    tray = new Tray(iconPath);
-    setTrayRef(tray);
-    updateTrayMenu(getUpdateAvailable());
-
-    if (process.platform === 'win32') {
-      tray.on('click', showWindow);
-    }
-  } catch (error) {
-    console.error('[Main] Tray creation failed. App will continue without system tray.', error);
-    disableTray();
-    tray = null;
-  }
-};
-
-const showWindow = async () => {
-  const windows = BrowserWindow.getAllWindows();
-
-  if (windows.length === 0) {
-    log.info('No windows are open, creating a new one...');
-    const recentDirs = loadRecentDirs();
-    const openDir = recentDirs.length > 0 ? recentDirs[0] : null;
-    await createChat(app, { dir: openDir || undefined });
-    return;
-  }
-
-  const initialOffsetX = 30;
-  const initialOffsetY = 30;
-
-  // Iterate over all windows
-  windows.forEach((win, index) => {
-    const currentBounds = win.getBounds();
-    const newX = currentBounds.x + initialOffsetX * index;
-    const newY = currentBounds.y + initialOffsetY * index;
-
-    win.setBounds({
-      x: newX,
-      y: newY,
-      width: currentBounds.width,
-      height: currentBounds.height,
-    });
-
-    if (!win.isVisible()) {
-      win.show();
-    }
-
-    win.focus();
-  });
 };
 
 // Global error handler
@@ -1010,19 +812,6 @@ ipcMain.handle('open-external', async (_event, url: string) => {
   await shell.openExternal(url);
 });
 
-ipcMain.handle('directory-chooser', async () => {
-  return dialog.showOpenDialog({
-    properties: ['openDirectory', 'createDirectory'],
-    defaultPath: os.homedir(),
-  });
-});
-
-ipcMain.handle('add-recent-dir', (_event, dir: string) => {
-  if (dir) {
-    addRecentDir(dir);
-  }
-});
-
 ipcMain.handle('get-setting', (_event, key: SettingKey) => {
   const settings = getSettings();
   return settings[key];
@@ -1056,11 +845,6 @@ ipcMain.handle('set-setting', (_event, key: SettingKey, value: unknown) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (settings as any)[key] = value;
   fsSync.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
-
-  // Re-register shortcuts if keyboard shortcuts changed
-  if (key === 'keyboardShortcuts') {
-    registerGlobalShortcuts();
-  }
 });
 
 ipcMain.handle('get-secret-key', () => {
@@ -1078,332 +862,6 @@ ipcMain.handle('get-goosed-host-port', async (event) => {
     return null;
   }
   return client.getConfig().baseUrl || null;
-});
-
-// Handle menu bar icon visibility
-ipcMain.handle('set-menu-bar-icon', async (_event, show: boolean) => {
-  updateSettings((s) => {
-    s.showMenuBarIcon = show;
-  });
-
-  if (show) {
-    createTray();
-  } else {
-    destroyTray();
-  }
-  return true;
-});
-
-ipcMain.handle('get-menu-bar-icon-state', () => {
-  try {
-    const settings = getSettings();
-    return settings.showMenuBarIcon ?? true;
-  } catch (error) {
-    console.error('Error getting menu bar icon state:', error);
-    return true;
-  }
-});
-
-// Handle dock icon visibility (macOS only)
-ipcMain.handle('set-dock-icon', async (_event, show: boolean) => {
-  if (process.platform !== 'darwin') return false;
-
-  const settings = getSettings();
-  updateSettings((s) => {
-    s.showDockIcon = show;
-  });
-
-  if (show) {
-    app.dock?.show();
-  } else {
-    // Only hide the dock if we have a menu bar icon to maintain accessibility
-    if (settings.showMenuBarIcon) {
-      app.dock?.hide();
-      setTimeout(() => {
-        focusWindow();
-      }, 50);
-    }
-  }
-  return true;
-});
-
-ipcMain.handle('get-dock-icon-state', () => {
-  try {
-    if (process.platform !== 'darwin') return true;
-    const settings = getSettings();
-    return settings.showDockIcon ?? true;
-  } catch (error) {
-    console.error('Error getting dock icon state:', error);
-    return true;
-  }
-});
-
-// Handle opening system notifications preferences
-ipcMain.handle('open-notifications-settings', async () => {
-  try {
-    if (process.platform === 'darwin') {
-      spawn('open', ['x-apple.systempreferences:com.apple.preference.notifications']);
-      return true;
-    } else if (process.platform === 'win32') {
-      // Windows: Open notification settings in Settings app
-      spawn('ms-settings:notifications', { shell: true });
-      return true;
-    } else if (process.platform === 'linux') {
-      // Linux: Try different desktop environments
-      // GNOME
-      try {
-        spawn('gnome-control-center', ['notifications']);
-        return true;
-      } catch {
-        console.log('GNOME control center not found, trying other options');
-      }
-
-      // KDE Plasma
-      try {
-        spawn('systemsettings5', ['kcm_notifications']);
-        return true;
-      } catch {
-        console.log('KDE systemsettings5 not found, trying other options');
-      }
-
-      // XFCE
-      try {
-        spawn('xfce4-settings-manager', ['--socket-id=notifications']);
-        return true;
-      } catch {
-        console.log('XFCE settings manager not found, trying other options');
-      }
-
-      // Fallback: Try to open general settings
-      try {
-        spawn('gnome-control-center');
-        return true;
-      } catch {
-        console.warn('Could not find a suitable settings application for Linux');
-        return false;
-      }
-    } else {
-      console.warn(
-        `Opening notification settings is not supported on platform: ${process.platform}`
-      );
-      return false;
-    }
-  } catch (error) {
-    console.error('Error opening notification settings:', error);
-    return false;
-  }
-});
-
-// Handle wakelock setting
-ipcMain.handle('set-wakelock', async (_event, enable: boolean) => {
-  updateSettings((s) => {
-    s.enableWakelock = enable;
-  });
-
-  // Stop all existing power save blockers when disabling the setting
-  if (!enable) {
-    for (const [windowId, blockerId] of windowPowerSaveBlockers.entries()) {
-      try {
-        powerSaveBlocker.stop(blockerId);
-        console.log(
-          `[Main] Stopped power save blocker ${blockerId} for window ${windowId} due to wakelock setting disabled`
-        );
-      } catch (error) {
-        console.error(
-          `[Main] Failed to stop power save blocker ${blockerId} for window ${windowId}:`,
-          error
-        );
-      }
-    }
-    windowPowerSaveBlockers.clear();
-  }
-
-  return true;
-});
-
-ipcMain.handle('get-wakelock-state', () => {
-  try {
-    const settings = getSettings();
-    return settings.enableWakelock ?? false;
-  } catch (error) {
-    console.error('Error getting wakelock state:', error);
-    return false;
-  }
-});
-
-ipcMain.handle('set-spellcheck', async (_event, enable: boolean) => {
-  updateSettings((s) => {
-    s.spellcheckEnabled = enable;
-  });
-  return true;
-});
-
-ipcMain.handle('get-spellcheck-state', () => {
-  try {
-    const settings = getSettings();
-    return settings.spellcheckEnabled ?? true;
-  } catch (error) {
-    console.error('Error getting spellcheck state:', error);
-    return true;
-  }
-});
-
-// Add file/directory selection handler
-ipcMain.handle('select-file-or-directory', async (_event, defaultPath?: string) => {
-  const dialogOptions: OpenDialogOptions = {
-    properties: process.platform === 'darwin' ? ['openFile', 'openDirectory'] : ['openFile'],
-  };
-
-  // Set default path if provided
-  if (defaultPath) {
-    // Expand tilde to home directory
-    const expandedPath = expandTilde(defaultPath);
-
-    // Check if the path exists
-    try {
-      const stats = await fs.stat(expandedPath);
-      if (stats.isDirectory()) {
-        dialogOptions.defaultPath = expandedPath;
-      } else {
-        dialogOptions.defaultPath = path.dirname(expandedPath);
-      }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
-      // If path doesn't exist, fall back to home directory and log error
-      console.error(`Default path does not exist: ${expandedPath}, falling back to home directory`);
-      dialogOptions.defaultPath = os.homedir();
-    }
-  }
-
-  const result = (await dialog.showOpenDialog(dialogOptions)) as unknown as OpenDialogReturnValue;
-
-  if (!result.canceled && result.filePaths.length > 0) {
-    return result.filePaths[0];
-  }
-  return null;
-});
-
-ipcMain.handle('check-ollama', async () => {
-  try {
-    return new Promise((resolve) => {
-      // Run `ps` and filter for "ollama"
-      const ps = spawn('ps', ['aux']);
-      const grep = spawn('grep', ['-iw', '[o]llama']);
-
-      let output = '';
-      let errorOutput = '';
-
-      // Pipe ps output to grep
-      ps.stdout.pipe(grep.stdin);
-
-      grep.stdout.on('data', (data) => {
-        output += data.toString();
-      });
-
-      grep.stderr.on('data', (data) => {
-        errorOutput += data.toString();
-      });
-
-      grep.on('close', (code) => {
-        if (code !== null && code !== 0 && code !== 1) {
-          // grep returns 1 when no matches found
-          console.error('Error executing grep command:', errorOutput);
-          return resolve(false);
-        }
-
-        console.log('Raw stdout from ps|grep command:', output);
-        const trimmedOutput = output.trim();
-        console.log('Trimmed stdout:', trimmedOutput);
-
-        const isRunning = trimmedOutput.length > 0;
-        resolve(isRunning);
-      });
-
-      ps.on('error', (error) => {
-        console.error('Error executing ps command:', error);
-        resolve(false);
-      });
-
-      grep.on('error', (error) => {
-        console.error('Error executing grep command:', error);
-        resolve(false);
-      });
-
-      // Close ps stdin when done
-      ps.stdout.on('end', () => {
-        grep.stdin.end();
-      });
-    });
-  } catch (err) {
-    console.error('Error checking for Ollama:', err);
-    return false;
-  }
-});
-
-ipcMain.handle('read-file', async (_event, filePath) => {
-  try {
-    const expandedPath = expandTilde(filePath);
-    if (process.platform === 'win32') {
-      const buffer = await fs.readFile(expandedPath);
-      return { file: buffer.toString('utf8'), filePath: expandedPath, error: null, found: true };
-    }
-    // Non-Windows: keep previous behavior via cat for parity
-    return await new Promise((resolve) => {
-      const cat = spawn('cat', [expandedPath]);
-      let output = '';
-      let errorOutput = '';
-
-      cat.stdout.on('data', (data) => {
-        output += data.toString();
-      });
-
-      cat.stderr.on('data', (data) => {
-        errorOutput += data.toString();
-      });
-
-      cat.on('close', (code) => {
-        if (code !== 0) {
-          resolve({ file: '', filePath: expandedPath, error: errorOutput || null, found: false });
-          return;
-        }
-        resolve({ file: output, filePath: expandedPath, error: null, found: true });
-      });
-
-      cat.on('error', (error) => {
-        console.error('Error reading file:', error);
-        resolve({ file: '', filePath: expandedPath, error, found: false });
-      });
-    });
-  } catch (error) {
-    console.error('Error reading file:', error);
-    return { file: '', filePath: expandTilde(filePath), error, found: false };
-  }
-});
-
-ipcMain.handle('write-file', async (_event, filePath, content) => {
-  try {
-    // Expand tilde to home directory
-    const expandedPath = expandTilde(filePath);
-    await fs.writeFile(expandedPath, content, { encoding: 'utf8' });
-    return true;
-  } catch (error) {
-    console.error('Error writing to file:', error);
-    return false;
-  }
-});
-
-// Enhanced file operations
-ipcMain.handle('ensure-directory', async (_event, dirPath) => {
-  try {
-    // Expand tilde to home directory
-    const expandedPath = expandTilde(dirPath);
-
-    await fs.mkdir(expandedPath, { recursive: true });
-    return true;
-  } catch (error) {
-    console.error('Error creating directory:', error);
-    return false;
-  }
 });
 
 ipcMain.handle('list-files', async (_event, dirPath, extension) => {
@@ -1426,53 +884,8 @@ ipcMain.handle('show-message-box', async (_event, options) => {
   return dialog.showMessageBox(options);
 });
 
-ipcMain.handle('show-save-dialog', async (_event, options) => {
-  return dialog.showSaveDialog(options);
-});
-
 const createNewWindow = async (app: App, dir?: string | null) => {
-  const recentDirs = loadRecentDirs();
-  const openDir = dir || (recentDirs.length > 0 ? recentDirs[0] : undefined);
-  return await createChat(app, { dir: openDir });
-};
-
-const focusWindow = () => {
-  const windows = BrowserWindow.getAllWindows();
-  if (windows.length > 0) {
-    windows.forEach((win) => {
-      win.show();
-    });
-    windows[windows.length - 1].webContents.send('focus-input');
-  } else {
-    createNewWindow(app);
-  }
-};
-
-const registerGlobalShortcuts = () => {
-  globalShortcut.unregisterAll();
-
-  const settings = getSettings();
-  const shortcuts = getKeyboardShortcuts(settings);
-
-  if (shortcuts.focusWindow) {
-    try {
-      globalShortcut.register(shortcuts.focusWindow, () => {
-        focusWindow();
-      });
-    } catch (e) {
-      console.error('Error registering focus window hotkey:', e);
-    }
-  }
-
-  if (shortcuts.quickLauncher) {
-    try {
-      globalShortcut.register(shortcuts.quickLauncher, () => {
-        createLauncher();
-      });
-    } catch (e) {
-      console.error('Error registering launcher hotkey:', e);
-    }
-  }
+  return await createChat(app, { dir: dir || undefined });
 };
 
 async function appMain() {
@@ -1480,8 +893,6 @@ async function appMain() {
 
   // Ensure Windows shims are available before any MCP processes are spawned
   await ensureWinShims();
-
-  registerUpdateIpcHandlers();
 
   // Handle microphone permission requests
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
@@ -1553,21 +964,10 @@ async function appMain() {
     });
   }
 
-  // Register global shortcuts based on settings
-  registerGlobalShortcuts();
-
   session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
     details.requestHeaders['Origin'] = 'http://localhost:5173';
     callback({ cancel: false, requestHeaders: details.requestHeaders });
   });
-
-  if (settings.showMenuBarIcon) {
-    createTray();
-  }
-
-  if (process.platform === 'darwin' && !settings.showDockIcon && settings.showMenuBarIcon) {
-    app.dock?.hide();
-  }
 
   const { dirPath } = parseArgs();
 
@@ -1575,30 +975,6 @@ async function appMain() {
     await createNewWindow(app, dirPath);
   } else {
     log.info('[Main] Skipping window creation in appMain - open-url already handled launch');
-  }
-
-  // Setup auto-updater AFTER window is created and displayed (with delay to avoid blocking)
-  setTimeout(() => {
-    if (shouldSetupUpdater()) {
-      log.info('Setting up auto-updater after window creation...');
-      try {
-        setupAutoUpdater();
-      } catch (error) {
-        log.error('Error setting up auto-updater:', error);
-      }
-    }
-  }, 2000);
-
-  if (process.platform === 'darwin') {
-    const dockMenu = Menu.buildFromTemplate([
-      {
-        label: 'New Window',
-        click: () => {
-          createNewWindow(app);
-        },
-      },
-    ]);
-    app.dock?.setMenu(dockMenu);
   }
 
   const shortcuts = getKeyboardShortcuts(settings);
@@ -1715,50 +1091,6 @@ async function appMain() {
     }
   });
 
-  ipcMain.on('create-chat-window', (event, options = {}) => {
-    const { query, dir, resumeSessionId, viewType } = options;
-
-    let resolvedDir = dir;
-    if (!resolvedDir?.trim()) {
-      const recentDirs = loadRecentDirs();
-      resolvedDir = recentDirs.length > 0 ? recentDirs[0] : undefined;
-    }
-
-    const isFromLauncher = query && !resumeSessionId && !viewType;
-
-    if (isFromLauncher) {
-      const senderWindow = BrowserWindow.fromWebContents(event.sender);
-      const launcherWindowId = senderWindow?.id;
-      const allWindows = BrowserWindow.getAllWindows();
-
-      const existingWindows = allWindows.filter(
-        (win) => !win.isDestroyed() && win.id !== launcherWindowId
-      );
-
-      if (existingWindows.length > 0) {
-        const targetWindow = existingWindows[0];
-        targetWindow.show();
-        targetWindow.focus();
-        targetWindow.webContents.send('set-initial-message', query);
-        return;
-      }
-    }
-
-    createChat(app, {
-      initialMessage: query,
-      dir: resolvedDir,
-      resumeSessionId,
-      viewType,
-    });
-  });
-
-  ipcMain.on('close-window', (event) => {
-    const window = BrowserWindow.fromWebContents(event.sender);
-    if (window && !window.isDestroyed()) {
-      window.close();
-    }
-  });
-
   ipcMain.on('notify', (event, data) => {
     try {
       // Validate notification data
@@ -1832,108 +1164,11 @@ async function appMain() {
     }
   });
 
-  ipcMain.on('broadcast-theme-change', (event, themeData) => {
-    const senderWindow = BrowserWindow.fromWebContents(event.sender);
-    const allWindows = BrowserWindow.getAllWindows();
-
-    allWindows.forEach((window) => {
-      if (window.id !== senderWindow?.id) {
-        window.webContents.send('theme-changed', themeData);
-      }
-    });
-  });
-
   ipcMain.on('reload-app', (event) => {
     // Get the window that sent the event
     const window = BrowserWindow.fromWebContents(event.sender);
     if (window) {
       window.reload();
-    }
-  });
-
-  // Handle metadata fetching from main process
-  ipcMain.handle('fetch-metadata', async (_event, url) => {
-    try {
-      // Validate URL
-      const parsedUrl = new URL(url);
-
-      // Only allow http and https protocols for fetching web content
-      if (!WEB_PROTOCOLS.includes(parsedUrl.protocol)) {
-        throw new Error('Invalid URL protocol. Only HTTP and HTTPS are allowed.');
-      }
-
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; Goose/1.0)',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      // Set a reasonable size limit (e.g., 10MB)
-      const MAX_SIZE = 10 * 1024 * 1024; // 10MB
-      const contentLength = parseInt(response.headers.get('content-length') || '0');
-      if (contentLength > MAX_SIZE) {
-        throw new Error('Response too large');
-      }
-
-      const text = await response.text();
-      if (text.length > MAX_SIZE) {
-        throw new Error('Response too large');
-      }
-
-      return text;
-    } catch (error) {
-      console.error('Error fetching metadata:', error);
-      throw error;
-    }
-  });
-
-  ipcMain.on('open-in-chrome', (_event, url) => {
-    try {
-      // Validate URL
-      const parsedUrl = new URL(url);
-
-      // Only allow http and https protocols for browser URLs
-      if (!WEB_PROTOCOLS.includes(parsedUrl.protocol)) {
-        console.error('Invalid URL protocol. Only HTTP and HTTPS are allowed.');
-        return;
-      }
-
-      // On macOS, use the 'open' command with Chrome
-      if (process.platform === 'darwin') {
-        spawn('open', ['-a', 'Google Chrome', url]);
-      } else if (process.platform === 'win32') {
-        // On Windows, start is built-in command of cmd.exe
-        spawn('cmd.exe', ['/c', 'start', '', 'chrome', url]);
-      } else {
-        // On Linux, use xdg-open with chrome
-        spawn('xdg-open', [url]);
-      }
-    } catch (error) {
-      console.error('Error opening URL in browser:', error);
-    }
-  });
-
-  // Handle app restart
-  ipcMain.on('restart-app', () => {
-    app.relaunch();
-    app.exit(0);
-  });
-
-  // Handler for getting app version
-  ipcMain.on('get-app-version', (event) => {
-    event.returnValue = app.getVersion();
-  });
-
-  ipcMain.handle('open-directory-in-explorer', async (_event, path: string) => {
-    try {
-      return !!(await shell.openPath(path));
-    } catch (error) {
-      console.error('Error opening directory in explorer:', error);
-      return false;
     }
   });
 
@@ -1948,28 +1183,8 @@ app.whenReady().then(async () => {
   }
 });
 
-app.on('will-quit', async () => {
-  for (const [windowId, blockerId] of windowPowerSaveBlockers.entries()) {
-    try {
-      powerSaveBlocker.stop(blockerId);
-      console.log(
-        `[Main] Stopped power save blocker ${blockerId} for window ${windowId} during app quit`
-      );
-    } catch (error) {
-      console.error(
-        `[Main] Failed to stop power save blocker ${blockerId} for window ${windowId}:`,
-        error
-      );
-    }
-  }
-  windowPowerSaveBlockers.clear();
-
-  globalShortcut.unregisterAll();
-});
+app.on('will-quit', async () => {});
 
 app.on('window-all-closed', () => {
-  // Only quit if we're not on macOS or don't have a tray icon
-  if (process.platform !== 'darwin' || !tray) {
-    app.quit();
-  }
+  app.quit();
 });

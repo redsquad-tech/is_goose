@@ -12,7 +12,6 @@ import { openSharedSessionFromDeepLink } from './sessionLinks';
 import { type SharedSessionDetails } from './sharedSessions';
 import { ErrorUI } from './components/ErrorBoundary';
 import { ToastContainer } from 'react-toastify';
-import AnnouncementModal from './components/AnnouncementModal';
 import { createSession } from './sessions';
 
 import { ChatType } from './types/chat';
@@ -27,7 +26,6 @@ import SessionsView from './components/sessions/SessionsView';
 import SharedSessionView from './components/sessions/SharedSessionView';
 import { AppLayout } from './components/Layout/AppLayout';
 import { ChatProvider, DEFAULT_CHAT_TITLE } from './contexts/ChatContext';
-import LauncherView from './components/LauncherView';
 
 import 'react-toastify/dist/ReactToastify.css';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -281,25 +279,6 @@ export function AppInner() {
     };
   }, [navigate]);
 
-  useEffect(() => {
-    console.log('Setting up keyboard shortcuts');
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const isMac = window.electron.platform === 'darwin';
-      if ((isMac ? event.metaKey : event.ctrlKey) && event.key === 'n') {
-        event.preventDefault();
-        try {
-          window.electron.createChatWindow({ dir: getInitialWorkingDir() });
-        } catch (error) {
-          console.error('Error creating new window:', error);
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
-
   // Prevent default drag and drop behavior globally to avoid opening files in new windows
   // but allow our React components to handle drops in designated areas
   useEffect(() => {
@@ -395,7 +374,7 @@ export function AppInner() {
     };
   }, []);
 
-  // Handle initial message from launcher
+  // Handle an initial message pushed in from the main process
   const isProcessingRef = useRef(false);
 
   useEffect(() => {
@@ -410,7 +389,7 @@ export function AppInner() {
 
       if (initialMessage && !isProcessingRef.current) {
         isProcessingRef.current = true;
-        console.log('[App] Processing initial message from launcher:', initialMessage);
+        console.log('[App] Processing initial message:', initialMessage);
         navigate('/pair', {
           state: {
             initialMessage: { msg: initialMessage, images: [] },
@@ -454,7 +433,6 @@ export function AppInner() {
         <div className="titlebar-drag-region" />
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
           <Routes>
-            <Route path="launcher" element={<LauncherView />} />
             <Route
               path="/"
               element={
@@ -498,7 +476,6 @@ export default function App() {
       <HashRouter>
         <AppInner />
       </HashRouter>
-      <AnnouncementModal />
     </ThemeProvider>
   );
 }

@@ -1,6 +1,6 @@
 import { AppEvents } from '../constants/events';
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { ScrollText } from 'lucide-react';
+import { FolderDot, ScrollText } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/Tooltip';
 import { Button } from './ui/button';
 import Stop from './ui/Stop';
@@ -8,7 +8,6 @@ import { Send, Close } from './icons';
 import { ChatState } from '../types/chatState';
 import debounce from 'lodash/debounce';
 import { LocalMessageStorage } from '../utils/localMessageStorage';
-import { DirSwitcher } from './bottom_menu/DirSwitcher';
 import { AlertType, useAlerts } from './alerts';
 import MentionPopover, { DisplayItemWithMatch } from './MentionPopover';
 import { DroppedFile, useFileDrop } from '../hooks/useFileDrop';
@@ -58,7 +57,6 @@ export default function ChatInput({
   sessionId,
   handleSubmit,
   chatState = ChatState.Idle,
-  setChatState,
   onStop,
   commandHistory = [],
   initialValue = '',
@@ -69,7 +67,6 @@ export default function ChatInput({
   disableAnimation = false,
   toolCount,
   append: _append,
-  onWorkingDirChange,
   inputRef,
 }: ChatInputProps) {
   const [_value, setValue] = useState(initialValue);
@@ -1098,19 +1095,12 @@ export default function ChatInput({
 
       {/* Secondary actions row below input */}
       <div className="flex flex-row items-center gap-1 p-2 relative">
-        <DirSwitcher
-          className="mr-0"
-          sessionId={sessionId ?? undefined}
-          workingDir={sessionWorkingDir ?? getInitialWorkingDir()}
-          onWorkingDirChange={(newDir) => {
-            setSessionWorkingDir(newDir);
-            if (onWorkingDirChange) {
-              onWorkingDirChange(newDir);
-            }
-          }}
-          onRestartStart={() => setChatState?.(ChatState.RestartingAgent)}
-          onRestartEnd={() => setChatState?.(ChatState.Idle)}
-        />
+        <div className="z-[100] text-text-primary/70 text-xs flex items-center pl-1">
+          <FolderDot className="mr-1" size={16} />
+          <div className="max-w-[200px] truncate [direction:rtl]">
+            {sessionWorkingDir ?? getInitialWorkingDir()}
+          </div>
+        </div>
         <MentionPopover
           ref={mentionPopoverRef}
           isOpen={mentionPopover.isOpen}
