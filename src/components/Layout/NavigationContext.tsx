@@ -20,8 +20,6 @@ export interface NavigationPreferences {
 export const DEFAULT_ITEM_ORDER = [
   'home',
   'chat',
-  'apps',
-  'settings',
 ];
 
 export const DEFAULT_ENABLED_ITEMS = [...DEFAULT_ITEM_ORDER];

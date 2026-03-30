@@ -233,10 +233,7 @@ const SessionHistoryView: React.FC<SessionHistoryViewProps> = ({
         </TooltipTrigger>
         {!canShare ? (
           <TooltipContent>
-            <p>
-              To enable session sharing, go to <b>Settings</b> {'>'} <b>Session</b> {'>'}{' '}
-              <b>Session Sharing</b>.
-            </p>
+            <p>Session sharing is unavailable in this build.</p>
           </TooltipContent>
         ) : null}
       </Tooltip>

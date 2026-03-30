@@ -1,25 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import {
-  readAllConfig,
-  readConfig,
-  removeConfig,
-  upsertConfig,
-  providers,
-} from '../api';
-import type {
-  ConfigResponse,
-  UpsertConfigQuery,
-  ConfigKeyQuery,
-  ProviderDetails,
-} from '../api';
+import { readAllConfig, readConfig, removeConfig, upsertConfig } from '../api';
+import type { ConfigResponse, UpsertConfigQuery, ConfigKeyQuery } from '../api';
 
 interface ConfigContextType {
   config: ConfigResponse['config'];
-  providersList: ProviderDetails[];
   upsert: (key: string, value: unknown, is_secret: boolean) => Promise<void>;
   read: (key: string, is_secret: boolean) => Promise<unknown>;
   remove: (key: string, is_secret: boolean) => Promise<void>;
-  getProviders: (b: boolean) => Promise<ProviderDetails[]>;
 }
 
 interface ConfigProviderProps {
@@ -30,11 +17,6 @@ const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
 
 export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
   const [config, setConfig] = useState<ConfigResponse['config']>({});
-  const [providersList, setProvidersList] = useState<ProviderDetails[]>([]);
-
-  // Ref to access providersList in getProviders without recreating the callback
-  const providersListRef = React.useRef<ProviderDetails[]>(providersList);
-  providersListRef.current = providersList;
 
   const reloadConfig = useCallback(async () => {
     const response = await readAllConfig();
@@ -75,50 +57,22 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
     [reloadConfig]
   );
 
-  const getProviders = useCallback(async (forceRefresh = false): Promise<ProviderDetails[]> => {
-    if (forceRefresh || providersListRef.current.length === 0) {
-      try {
-        const response = await providers();
-        const providersData = response.data || [];
-        setProvidersList(providersData);
-        return providersData;
-      } catch (error) {
-        console.error('Failed to fetch providers:', error);
-        return providersListRef.current;
-      }
-    }
-    return providersListRef.current;
-  }, []);
-
   useEffect(() => {
-    // Load all configuration data and providers on mount
+    // Load configuration data on mount
     (async () => {
-      // Load config
       const configResponse = await readAllConfig();
       setConfig(configResponse.data?.config || {});
-
-      // Load providers
-      try {
-        const providersResponse = await providers();
-        const providersData = providersResponse.data || [];
-        setProvidersList(providersData);
-      } catch (error) {
-        console.error('Failed to load providers:', error);
-        setProvidersList([]);
-      }
     })();
   }, []);
 
   const contextValue = useMemo(() => {
     return {
       config,
-      providersList,
       upsert,
       read,
       remove,
-      getProviders,
     };
-  }, [config, providersList, upsert, read, remove, getProviders]);
+  }, [config, upsert, read, remove]);
 
   return <ConfigContext.Provider value={contextValue}>{children}</ConfigContext.Provider>;
 };

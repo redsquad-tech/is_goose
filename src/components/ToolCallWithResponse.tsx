@@ -3,6 +3,7 @@ import { ToolIconWithStatus, ToolCallStatus } from './ToolCallStatusIndicator';
 import { getToolCallIcon } from '../utils/toolIconMapping';
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from './ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/Tooltip';
 import { ToolCallArguments, ToolCallArgumentValue } from './ToolCallArguments';
 import MarkdownContent from './MarkdownContent';
 import {
@@ -14,7 +15,6 @@ import {
 import { cn, snakeToTitleCase } from '../utils';
 import { LoadingStatus } from './ui/Dot';
 import { ChevronRight, FlaskConical } from 'lucide-react';
-import { TooltipWrapper } from './settings/providers/subcomponents/buttons/TooltipWrapper';
 import MCPUIResourceRenderer from './MCPUIResourceRenderer';
 import { isUIResource } from '@mcp-ui/client';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -723,9 +723,12 @@ function ToolCallView({
       isForceExpand={false}
       label={
         extensionTooltip ? (
-          <TooltipWrapper tooltipContent={extensionTooltip} side="top" align="start">
-            {toolLabel}
-          </TooltipWrapper>
+          <Tooltip>
+            <TooltipTrigger asChild>{toolLabel}</TooltipTrigger>
+            <TooltipContent side="top" align="start">
+              {extensionTooltip}
+            </TooltipContent>
+          </Tooltip>
         ) : (
           toolLabel
         )

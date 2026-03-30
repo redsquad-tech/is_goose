@@ -752,15 +752,13 @@ function updateTrayIcon(hasUpdate: boolean) {
   updateTrayMenu(hasUpdate);
 }
 
-// Function to open settings and scroll to update section
-function openUpdateSettings() {
+// Function to focus the main Goose window when an update is available
+function focusMainWindow() {
   const windows = BrowserWindow.getAllWindows();
   if (windows.length > 0) {
     const mainWindow = windows[0];
     mainWindow.show();
     mainWindow.focus();
-    // Send message to open settings and scroll to update section
-    mainWindow.webContents.send('set-view', 'settings', 'update');
   }
 }
 
@@ -774,7 +772,7 @@ export function updateTrayMenu(hasUpdate: boolean) {
   if (hasUpdate) {
     menuItems.push({
       label: 'Update Available...',
-      click: openUpdateSettings,
+      click: focusMainWindow,
     });
   }
 

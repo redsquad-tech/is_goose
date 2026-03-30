@@ -1,41 +1,23 @@
 import { AppEvents } from '../constants/events';
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { Bug, ScrollText } from 'lucide-react';
+import { ScrollText } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/Tooltip';
 import { Button } from './ui/button';
-import type { View } from '../utils/navigationUtils';
 import Stop from './ui/Stop';
-import { Attach, Send, Close, Microphone } from './icons';
+import { Send, Close } from './icons';
 import { ChatState } from '../types/chatState';
 import debounce from 'lodash/debounce';
 import { LocalMessageStorage } from '../utils/localMessageStorage';
 import { DirSwitcher } from './bottom_menu/DirSwitcher';
-import ModelsBottomBar from './settings/models/bottom_bar/ModelsBottomBar';
-import { BottomMenuModeSelection } from './bottom_menu/BottomMenuModeSelection';
 import { AlertType, useAlerts } from './alerts';
-import { useConfig } from './ConfigContext';
-import { useModelAndProvider } from './ModelAndProviderContext';
-import { useAudioRecorder } from '../hooks/useAudioRecorder';
-import { toastError } from '../toasts';
 import MentionPopover, { DisplayItemWithMatch } from './MentionPopover';
-import { COST_TRACKING_ENABLED } from '../updates';
-import { CostTracker } from './bottom_menu/CostTracker';
 import { DroppedFile, useFileDrop } from '../hooks/useFileDrop';
 import { MessageQueue, QueuedMessage } from './MessageQueue';
 import { detectInterruption } from '../utils/interruptionDetector';
-import { DiagnosticsModal } from './ui/Diagnostics';
 import { getSession, Message } from '../api';
 import { getInitialWorkingDir } from '../utils/workingDir';
-import { getPredefinedModelsFromEnv } from './settings/models/predefinedModelsUtils';
-import {
-  trackFileAttached,
-  trackVoiceDictation,
-  trackDiagnosticsOpened,
-} from '../utils/analytics';
-import { getNavigationShortcutText } from '../utils/keyboardShortcuts';
 import { UserInput, ImageData } from '../types/message';
 import { compressImageDataUrl } from '../utils/conversionUtils';
-import { fetchCanonicalModelInfo } from '../utils/canonical';
 
 interface PastedImage {
   id: string;
@@ -63,18 +45,8 @@ interface ChatInputProps {
   initialValue?: string;
   droppedFiles?: DroppedFile[];
   onFilesProcessed?: () => void;
-  setView: (view: View) => void;
   totalTokens?: number;
-  accumulatedInputTokens?: number;
-  accumulatedOutputTokens?: number;
   messages?: Message[];
-  sessionCosts?: {
-    [key: string]: {
-      inputTokens: number;
-      outputTokens: number;
-      totalCost: number;
-    };
-  };
   disableAnimation?: boolean;
   toolCount: number;
   append?: (message: Message) => void;
@@ -92,13 +64,9 @@ export default function ChatInput({
   initialValue = '',
   droppedFiles = [],
   onFilesProcessed,
-  setView,
   totalTokens,
-  accumulatedInputTokens,
-  accumulatedOutputTokens,
   messages: _messages = [],
   disableAnimation = false,
-  sessionCosts,
   toolCount,
   append: _append,
   onWorkingDirChange,
@@ -108,7 +76,6 @@ export default function ChatInput({
   const [displayValue, setDisplayValue] = useState(initialValue); // For immediate visual feedback
   const [isFocused, setIsFocused] = useState(false);
   const [pastedImages, setPastedImages] = useState<PastedImage[]>([]);
-  const [isFilePickerOpen, setIsFilePickerOpen] = useState(false);
 
   // Derived state - chatState != Idle means we're in some form of loading state
   const isLoading = chatState !== ChatState.Idle;
@@ -120,15 +87,8 @@ export default function ChatInput({
   const editingMessageIdRef = useRef<string | null>(null);
   const [lastInterruption, setLastInterruption] = useState<string | null>(null);
 
-  const { alerts, addAlert, clearAlerts } = useAlerts();
-  const dropdownRef: React.RefObject<HTMLDivElement> = useRef<HTMLDivElement>(
-    null
-  ) as React.RefObject<HTMLDivElement>;
-  const { getProviders } = useConfig();
-  const { getCurrentModelAndProvider, currentModel, currentProvider } = useModelAndProvider();
-  const [tokenLimit, setTokenLimit] = useState<number>(TOKEN_LIMIT_DEFAULT);
-  const [isTokenLimitLoaded, setIsTokenLimitLoaded] = useState(false);
-  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const { addAlert, clearAlerts } = useAlerts();
+  const [tokenLimit] = useState<number>(TOKEN_LIMIT_DEFAULT);
   const [sessionWorkingDir, setSessionWorkingDir] = useState<string | null>(null);
 
   useEffect(() => {
@@ -232,56 +192,6 @@ export default function ChatInput({
     selectFile: (index: number) => void;
   }>(null);
 
-  // Audio recorder hook for voice dictation
-  const {
-    isEnabled,
-    dictationProvider,
-    isRecording,
-    isTranscribing,
-    startRecording,
-    stopRecording,
-  } = useAudioRecorder({
-    onTranscription: (text) => {
-      trackVoiceDictation('transcribed');
-
-      let filteredText = text.replace(/\([^)]*\)/g, '').trim();
-
-      if (!filteredText) {
-        return;
-      }
-
-      const shouldAutoSubmit = /\bsubmit[.,!?;'"\s]*$/i.test(filteredText);
-
-      const cleanedText = shouldAutoSubmit
-        ? filteredText.replace(/\bsubmit[.,!?;'"\s]*$/i, '').trim()
-        : filteredText;
-
-      const newValue =
-        displayValue.trim() && cleanedText
-          ? `${displayValue.trim()} ${cleanedText}`
-          : displayValue.trim() || cleanedText;
-
-      setDisplayValue(newValue);
-      setValue(newValue);
-
-      if (shouldAutoSubmit && newValue.trim()) {
-        trackVoiceDictation('auto_submit');
-        setTimeout(() => {
-          performSubmit(newValue);
-        }, 100);
-      } else {
-        textAreaRef.current?.focus();
-      }
-    },
-    onError: (message) => {
-      const errorType = 'DictationError';
-      trackVoiceDictation('error', undefined, errorType);
-      toastError({
-        title: 'Dictation Error',
-        msg: message,
-      });
-    },
-  });
   const internalTextAreaRef = useRef<HTMLTextAreaElement>(null);
   const textAreaRef = inputRef || internalTextAreaRef;
   const timeoutRefsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
@@ -335,72 +245,11 @@ export default function ChatInput({
     }
   }, [textAreaRef]);
 
-  // Load providers and get current model's token limit
-  const loadProviderDetails = async () => {
-    try {
-      // Reset token limit loaded state
-      setIsTokenLimitLoaded(false);
-
-      // Get current model and provider first to avoid unnecessary provider fetches
-      const { model, provider } = await getCurrentModelAndProvider();
-      if (!model || !provider) {
-        console.log('No model or provider found');
-        setIsTokenLimitLoaded(true);
-        return;
-      }
-
-      // Priority 1: Check predefined models from environment
-      const predefinedModels = getPredefinedModelsFromEnv();
-      const predefinedModel = predefinedModels.find((m) => m.name === model);
-      if (predefinedModel?.context_limit) {
-        setTokenLimit(predefinedModel.context_limit);
-        setIsTokenLimitLoaded(true);
-        return;
-      }
-
-      // Priority 2: Check canonical model info (source of truth)
-      const canonicalInfo = await fetchCanonicalModelInfo(provider, model);
-      if (canonicalInfo?.context_limit) {
-        setTokenLimit(canonicalInfo.context_limit);
-        setIsTokenLimitLoaded(true);
-        return;
-      }
-
-      // Priority 3: Fall back to provider metadata known_models (may be outdated)
-      const providers = await getProviders(true);
-      const currentProvider = providers.find((p) => p.name === provider);
-      if (currentProvider?.metadata?.known_models) {
-        const modelConfig = currentProvider.metadata.known_models.find((m) => m.name === model);
-        if (modelConfig?.context_limit) {
-          setTokenLimit(modelConfig.context_limit);
-          setIsTokenLimitLoaded(true);
-          return;
-        }
-      }
-
-      // Priority 4: Use default if nothing else found
-      setTokenLimit(TOKEN_LIMIT_DEFAULT);
-      setIsTokenLimitLoaded(true);
-    } catch (err) {
-      console.error('Error loading providers or token limit:', err);
-      // Set default limit on error
-      setTokenLimit(TOKEN_LIMIT_DEFAULT);
-      setIsTokenLimitLoaded(true);
-    }
-  };
-
-  // Initial load and refresh when model changes
-  useEffect(() => {
-    loadProviderDetails();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentModel, currentProvider]);
-
   // Handle tool count alerts and token usage
   useEffect(() => {
     clearAlerts();
 
-    // Show alert when either there is registered token usage, or we know the limit
-    if ((totalTokens && totalTokens > 0) || (isTokenLimitLoaded && tokenLimit)) {
+    if ((totalTokens && totalTokens > 0) || tokenLimit) {
       addAlert({
         type: AlertType.Info,
         message: 'Context window',
@@ -428,7 +277,7 @@ export default function ChatInput({
     }
     // We intentionally omit setView as it shouldn't trigger a re-render of alerts
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalTokens, toolCount, tokenLimit, isTokenLimitLoaded, addAlert, clearAlerts]);
+  }, [totalTokens, toolCount, tokenLimit, addAlert, clearAlerts]);
 
   // Cleanup effect for component unmount - prevent memory leaks
   useEffect(() => {
@@ -945,81 +794,6 @@ export default function ChatInput({
     }
   };
 
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-  const handleFileSelect = () => {
-    if (isFilePickerOpen) return;
-    fileInputRef.current?.click();
-  };
-
-  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    setIsFilePickerOpen(true);
-    const file = files[0];
-    const isImage = file.type.startsWith('image/');
-
-    if (isImage) {
-      trackFileAttached('file');
-
-      if (pastedImages.length >= MAX_IMAGES_PER_MESSAGE) {
-        console.warn(`Maximum ${MAX_IMAGES_PER_MESSAGE} images per message`);
-        setIsFilePickerOpen(false);
-        return;
-      }
-
-      const uniqueId = `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-      setPastedImages((prev) => [
-        ...prev,
-        {
-          id: uniqueId,
-          dataUrl: '',
-          isLoading: true,
-          error: undefined,
-        },
-      ]);
-
-      const reader = new FileReader();
-      reader.onload = async (evt) => {
-        const dataUrl = evt.target?.result as string;
-        if (dataUrl) {
-          const compressedDataUrl = await compressImageDataUrl(dataUrl);
-          setPastedImages((prev) =>
-            prev.map((img) =>
-              img.id === uniqueId
-                ? { ...img, dataUrl: compressedDataUrl, isLoading: false, error: undefined }
-                : img
-            )
-          );
-        }
-      };
-      reader.onerror = () => {
-        setPastedImages((prev) =>
-          prev.map((img) =>
-            img.id === uniqueId
-              ? { ...img, isLoading: false, error: 'Failed to read image file' }
-              : img
-          )
-        );
-      };
-      reader.readAsDataURL(file);
-    } else {
-      trackFileAttached('file');
-      const path = window.electron.getPathForFile(file);
-      const newValue = displayValue.trim() ? `${displayValue.trim()} ${path}` : path;
-      setDisplayValue(newValue);
-      setValue(newValue);
-    }
-
-    textAreaRef.current?.focus();
-    setIsFilePickerOpen(false);
-    if (e.target) {
-      e.target.value = '';
-    }
-  };
-
   const handleMentionItemSelect = (itemText: string) => {
     // Replace the @ mention with the file path
     const beforeMention = displayValue.slice(0, mentionPopover.mentionStart);
@@ -1053,15 +827,11 @@ export default function ChatInput({
     !hasSubmittableContent ||
     isAnyImageLoading ||
     isAnyDroppedFileLoading ||
-    isRecording ||
-    isTranscribing ||
     chatState === ChatState.RestartingAgent;
 
   const getSubmitButtonTooltip = (): string => {
     if (isAnyImageLoading) return 'Waiting for images to save...';
     if (isAnyDroppedFileLoading) return 'Processing dropped files...';
-    if (isRecording) return 'Recording...';
-    if (isTranscribing) return 'Transcribing...';
     if (chatState === ChatState.RestartingAgent) return 'Restarting session...';
     if (!hasSubmittableContent) return 'Type a message to send';
     return 'Send';
@@ -1140,13 +910,6 @@ export default function ChatInput({
       onDrop={handleLocalDrop}
       onDragOver={handleLocalDragOver}
     >
-      <input
-        ref={fileInputRef}
-        type="file"
-        onChange={handleFileInputChange}
-        style={{ display: 'none' }}
-        accept="*/*"
-      />
       {/* Message Queue Display */}
       {queuedMessages.length > 0 && (
         <MessageQueue
@@ -1169,7 +932,7 @@ export default function ChatInput({
             data-testid="chat-input"
             autoFocus
             id="dynamic-textarea"
-            placeholder={isRecording ? '' : getNavigationShortcutText()}
+            placeholder="Write a message"
             value={displayValue}
             onChange={handleChange}
             onCompositionStart={handleCompositionStart}
@@ -1180,99 +943,17 @@ export default function ChatInput({
             onBlur={() => setIsFocused(false)}
             ref={textAreaRef}
             rows={1}
-            readOnly={isRecording}
             style={{
               minHeight: `${minTextareaHeight}px`,
               maxHeight: `${maxHeight}px`,
               overflowY: 'auto',
-              paddingRight: dictationProvider ? '180px' : '120px',
+              paddingRight: '120px',
             }}
             className="w-full outline-none border-none focus:ring-0 bg-transparent px-3 pt-3 pb-1.5 text-sm resize-none text-text-primary placeholder:text-text-secondary"
           />
 
           {/* Inline action buttons - absolutely positioned on the right */}
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-            {/* Microphone button - show only if provider is selected */}
-            {dictationProvider && (
-              <>
-                {!isEnabled ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex">
-                        <Button
-                          type="button"
-                          size="sm"
-                          shape="round"
-                          variant="outline"
-                          onClick={() => {}}
-                          disabled={true}
-                          className="bg-slate-600 text-white cursor-not-allowed opacity-50 border-slate-600 rounded-full px-6 py-2"
-                        >
-                          <Microphone />
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {dictationProvider === 'openai' ? (
-                        <p>
-                          OpenAI API key is not configured. Set it up in <b>Settings</b> {'>'}{' '}
-                          <b>Models.</b>
-                        </p>
-                      ) : dictationProvider === 'elevenlabs' ? (
-                        <p>
-                          ElevenLabs API key is not configured. Set it up in <b>Settings</b> {'>'}{' '}
-                          <b>Chat</b> {'>'} <b>Voice Dictation.</b>
-                        </p>
-                      ) : dictationProvider === 'local' ? (
-                        <p>
-                          Local Whisper model not found. Download a model in{' '}
-                          <b>Settings &gt; Dictation &gt; Local (Offline)</b>
-                        </p>
-                      ) : (
-                        <p>Dictation provider is not properly configured.</p>
-                      )}
-                    </TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        size="sm"
-                        shape="round"
-                        variant="outline"
-                        onClick={() => {
-                          if (isRecording) {
-                            trackVoiceDictation('stop');
-                            stopRecording();
-                          } else {
-                            trackVoiceDictation('start');
-                            startRecording();
-                          }
-                        }}
-                        disabled={isTranscribing}
-                        className={`rounded-full px-6 py-2 ${
-                          isRecording
-                            ? 'bg-red-500 text-white hover:bg-red-600 border-red-500'
-                            : isTranscribing
-                              ? 'bg-slate-600 text-white cursor-not-allowed animate-pulse border-slate-600'
-                              : 'bg-slate-600 text-white hover:bg-slate-700 border-slate-600'
-                        }`}
-                      >
-                        <Microphone />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>
-                        Voice dictation
-                        {isRecording ? '' : ' • Say "submit" to send'}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-              </>
-            )}
-
             {/* Send/Stop button */}
             {isLoading && !hasSubmittableContent ? (
               <Button
@@ -1312,26 +993,6 @@ export default function ChatInput({
               </Tooltip>
             )}
 
-            {/* Recording/transcribing status indicator - positioned above the button row */}
-            {(isRecording || isTranscribing) && (
-              <div className="absolute right-0 -top-8 bg-background-primary px-2 py-1 rounded text-xs whitespace-nowrap shadow-md border border-border-primary">
-                <span className="flex items-center gap-2">
-                  {isRecording && (
-                    <span className="flex items-center gap-1 text-text-secondary">
-                      <span className="inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                      Listening
-                    </span>
-                  )}
-                  {isRecording && isTranscribing && <span className="text-text-secondary">•</span>}
-                  {isTranscribing && (
-                    <span className="flex items-center gap-1 text-blue-500">
-                      <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                      Transcribing
-                    </span>
-                  )}
-                </span>
-              </div>
-            )}
           </div>
         </div>
       </form>
@@ -1435,7 +1096,7 @@ export default function ChatInput({
         </div>
       )}
 
-      {/* Secondary actions and controls row below input */}
+      {/* Secondary actions row below input */}
       <div className="flex flex-row items-center gap-1 p-2 relative">
         <DirSwitcher
           className="mr-0"
@@ -1450,76 +1111,6 @@ export default function ChatInput({
           onRestartStart={() => setChatState?.(ChatState.RestartingAgent)}
           onRestartEnd={() => setChatState?.(ChatState.Idle)}
         />
-        <div className="w-px h-4 bg-border-primary mx-2" />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              onClick={handleFileSelect}
-              disabled={isFilePickerOpen}
-              variant="ghost"
-              size="sm"
-              className={`flex items-center justify-center text-text-primary/70 hover:text-text-primary text-xs transition-colors ${isFilePickerOpen ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-            >
-              <Attach className="w-4 h-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Attach file</TooltipContent>
-        </Tooltip>
-        <div className="w-px h-4 bg-border-primary mx-2" />
-        {/* Model selector, mode selector, alerts, summarize button */}
-        <div className="flex flex-row items-center">
-          {/* Cost Tracker */}
-          {COST_TRACKING_ENABLED && (
-            <>
-              <div className="flex items-center h-full ml-1 mr-1">
-                <CostTracker
-                  inputTokens={accumulatedInputTokens}
-                  outputTokens={accumulatedOutputTokens}
-                  sessionCosts={sessionCosts}
-                />
-              </div>
-            </>
-          )}
-          <Tooltip>
-            <div>
-              <ModelsBottomBar
-                sessionId={sessionId}
-                dropdownRef={dropdownRef}
-                setView={setView}
-                alerts={alerts}
-              />
-            </div>
-          </Tooltip>
-          <div className="w-px h-4 bg-border-primary mx-2" />
-          <BottomMenuModeSelection />
-          {sessionId && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  onClick={() => {
-                    trackDiagnosticsOpened();
-                    setDiagnosticsOpen(true);
-                  }}
-                  variant="ghost"
-                  size="sm"
-                  className="flex items-center justify-center text-text-primary/70 hover:text-text-primary text-xs cursor-pointer transition-colors"
-                >
-                  <Bug className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Generate diagnostics bundle</TooltipContent>
-            </Tooltip>
-          )}
-        </div>
-        {sessionId && diagnosticsOpen && (
-          <DiagnosticsModal
-            isOpen={diagnosticsOpen}
-            onClose={() => setDiagnosticsOpen(false)}
-            sessionId={sessionId}
-          />
-        )}
         <MentionPopover
           ref={mentionPopoverRef}
           isOpen={mentionPopover.isOpen}

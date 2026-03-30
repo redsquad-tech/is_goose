@@ -1,5 +1,4 @@
 import Electron, { contextBridge, ipcRenderer, webUtils } from 'electron';
-import { GooseApp } from './api';
 import type { Settings, SettingKey } from './utils/settings';
 import { defaultSettings } from './utils/settings';
 
@@ -161,9 +160,6 @@ type ElectronAPI = {
   isUsingGitHubFallback: () => Promise<boolean>;
   closeWindow: () => void;
   openDirectoryInExplorer: (directoryPath: string) => Promise<boolean>;
-  launchApp: (app: GooseApp) => Promise<void>;
-  refreshApp: (app: GooseApp) => Promise<void>;
-  closeApp: (appName: string) => Promise<void>;
   addRecentDir: (dir: string) => Promise<boolean>;
 };
 
@@ -305,9 +301,6 @@ const electronAPI: ElectronAPI = {
   closeWindow: () => ipcRenderer.send('close-window'),
   openDirectoryInExplorer: (directoryPath: string) =>
     ipcRenderer.invoke('open-directory-in-explorer', directoryPath),
-  launchApp: (app: GooseApp) => ipcRenderer.invoke('launch-app', app),
-  refreshApp: (app: GooseApp) => ipcRenderer.invoke('refresh-app', app),
-  closeApp: (appName: string) => ipcRenderer.invoke('close-app', appName),
   addRecentDir: (dir: string) => ipcRenderer.invoke('add-recent-dir', dir),
 };
 

@@ -25,10 +25,8 @@ import { cn } from '../utils';
 import { useChatStream } from '../hooks/useChatStream';
 import { useNavigation } from '../hooks/useNavigation';
 import { UserInput } from '../types/message';
-import { useCostTracking } from '../hooks/useCostTracking';
 import { useToolCount } from './alerts/useToolCount';
 import { getThinkingMessage, getTextAndImageContent } from '../types/message';
-import { useModelAndProvider } from './ModelAndProviderContext';
 import { useAutoSubmit } from '../hooks/useAutoSubmit';
 import { Goose } from './icons';
 import EnvironmentBadge from './GooseSidebar/EnvironmentBadge';
@@ -139,22 +137,6 @@ export default function BaseChat({
   }, [messages]);
 
   const chatInputSubmit = (input: UserInput) => handleSubmit(input);
-
-  const { sessionCosts } = useCostTracking({
-    sessionInputTokens: session?.accumulated_input_tokens || 0,
-    sessionOutputTokens: session?.accumulated_output_tokens || 0,
-    localInputTokens: 0,
-    localOutputTokens: 0,
-    session,
-  });
-
-  const { setProviderAndModel } = useModelAndProvider();
-
-  useEffect(() => {
-    if (session?.provider_name && session?.model_config?.model_name) {
-      setProviderAndModel(session.provider_name, session.model_config.model_name);
-    }
-  }, [session?.provider_name, session?.model_config?.model_name, setProviderAndModel]);
 
   // Track if this is the initial render for session resuming
   const initialRenderRef = useRef(true);
@@ -377,19 +359,11 @@ export default function BaseChat({
             onStop={stopStreaming}
             commandHistory={commandHistory}
             initialValue=""
-            setView={setView}
             totalTokens={tokenState?.totalTokens ?? session?.total_tokens ?? undefined}
-            accumulatedInputTokens={
-              tokenState?.accumulatedInputTokens ?? session?.accumulated_input_tokens ?? undefined
-            }
-            accumulatedOutputTokens={
-              tokenState?.accumulatedOutputTokens ?? session?.accumulated_output_tokens ?? undefined
-            }
             droppedFiles={droppedFiles}
             onFilesProcessed={() => setDroppedFiles([])} // Clear dropped files after processing
             messages={messages}
             disableAnimation={disableAnimation}
-            sessionCosts={sessionCosts}
             toolCount={toolCount || 0}
             {...customChatInputProps}
           />

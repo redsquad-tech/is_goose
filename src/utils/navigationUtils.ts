@@ -2,15 +2,8 @@ import { NavigateFunction } from 'react-router-dom';
 import { UserInput } from '../types/message';
 
 export type View =
-  | 'welcome'
   | 'chat'
   | 'pair'
-  | 'settings'
-  | 'moreModels'
-  | 'configureProviders'
-  | 'configPage'
-  | 'ConfigureProviders'
-  | 'settingsV2'
   | 'sessions'
   | 'sharedSession'
   | 'loading';
@@ -19,8 +12,6 @@ export type ViewOptions = {
   sessionDetails?: unknown;
   error?: string;
   baseUrl?: string;
-  parentView?: View;
-  parentViewOptions?: ViewOptions;
   disableAnimation?: boolean;
   initialMessage?: UserInput;
   shareToken?: string;
@@ -46,21 +37,11 @@ export const createNavigationHandler = (navigate: NavigateFunction) => {
         navigate(url, { state: options });
         break;
       }
-      case 'settings':
-        navigate('/settings', { state: options });
-        break;
       case 'sessions':
         navigate('/sessions', { state: options });
         break;
-      case 'ConfigureProviders':
-        navigate('/configure-providers', { state: options });
-        break;
       case 'sharedSession':
         navigate('/shared-session', { state: options });
-        break;
-
-      case 'welcome':
-        navigate('/welcome', { state: options });
         break;
       default:
         navigate('/', { state: options });

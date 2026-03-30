@@ -1,69 +1,9 @@
 /**
- * Frontend Analytics Module
- *
- * Provides privacy-respecting analytics by routing events through the backend.
- * The backend uses posthog-rs which handles the PostHog API correctly.
- *
- * What we track:
- * - Feature usage (which features users interact with)
- * - Screen/view navigation
- * - Onboarding funnel completion
- * - Error types (without sensitive details)
- *
- * What we never track:
- * - Conversation content
- * - Code or file contents
- * - API keys or credentials
- * - Tool arguments or outputs
- * - Personal identifiable information
+ * Analytics is intentionally disabled in this trimmed frontend build.
+ * The exported functions remain as no-ops so the UI can compile without
+ * any telemetry, onboarding funnel, or usage tracking behavior.
  */
 
-import { sendTelemetryEvent } from '../api';
-
-let telemetryEnabled: boolean | null = null;
-
-export function setTelemetryEnabled(enabled: boolean): void {
-  telemetryEnabled = enabled;
-}
-
-function canTrack(): boolean {
-  return telemetryEnabled === true;
-}
-
-async function sendEvent(
-  eventName: string,
-  properties: Record<string, unknown> = {}
-): Promise<void> {
-  if (!canTrack()) return;
-
-  try {
-    await sendTelemetryEvent({
-      body: {
-        event_name: eventName,
-        properties: properties as Record<string, unknown>,
-      },
-    });
-  } catch (error) {
-    console.debug('[Analytics] Failed to send event:', error);
-  }
-}
-
-// ============================================================================
-// Event Types
-// ============================================================================
-
-/**
- * Frontend-specific analytics events.
- *
- * NOTE: The backend (posthog.rs) already tracks:
- * - session_started (extensions, provider, model, tokens, session count, etc.)
- * - error (provider errors like rate_limit, auth, etc.)
- *
- * Frontend events focus on what the backend can't see:
- * - UI navigation patterns
- * - Onboarding funnel (where users drop off during setup)
- * - Frontend-only crashes (React errors, unhandled rejections)
- */
 export type AnalyticsEvent =
   | { name: 'page_view'; properties: { page: string; referrer?: string } }
   | { name: 'onboarding_started'; properties: Record<string, never> }
@@ -112,7 +52,6 @@ export type AnalyticsEvent =
       name: 'telemetry_preference_set';
       properties: { enabled: boolean; location: 'settings' | 'onboarding' | 'modal' };
     }
-  // Chat input bar features
   | { name: 'input_file_attached'; properties: { file_type: 'file' | 'directory' } }
   | {
       name: 'input_voice_dictation';
@@ -124,7 +63,6 @@ export type AnalyticsEvent =
     }
   | { name: 'input_mode_changed'; properties: { from_mode: string; to_mode: string } }
   | { name: 'input_diagnostics_opened'; properties: Record<string, never> }
-  // Auto-update tracking events
   | {
       name: 'update_check_started';
       properties: { trigger: 'startup' | 'manual'; current_version: string };
@@ -172,136 +110,61 @@ export type AnalyticsEvent =
         action: 'quit_and_install' | 'open_folder_and_quit' | 'open_folder_only';
       };
     };
-// NOTE: slash_command_used is tracked by the backend (posthog.rs) with command_type info
 
-export function trackEvent<T extends AnalyticsEvent>(event: T): void {
-  sendEvent(event.name, event.properties);
-}
+export type UpdateMethod = 'electron-updater' | 'github-fallback';
 
-export function trackPageView(page: string, referrer?: string): void {
-  trackEvent({
-    name: 'page_view',
-    properties: { page, referrer },
-  });
-}
+export function setTelemetryEnabled(_enabled: boolean): void {}
+
+export function trackEvent<T extends AnalyticsEvent>(_event: T): void {}
+
+export function trackPageView(_page: string, _referrer?: string): void {}
 
 export function trackError(
-  errorType: string,
-  options: {
+  _errorType: string,
+  _options: {
     component?: string;
     page?: string;
     action?: string;
     stackSummary?: string;
     recoverable?: boolean;
   } = {}
-): void {
-  trackEvent({
-    name: 'error_occurred',
-    properties: {
-      error_type: errorType,
-      component: options.component,
-      page: options.page,
-      action: options.action,
-      stack_summary: options.stackSummary,
-      recoverable: options.recoverable ?? false,
-    },
-  });
-}
+): void {}
 
 export function trackErrorWithContext(
-  error: unknown,
-  context: {
+  _error: unknown,
+  _context: {
     component?: string;
     page?: string;
     action?: string;
     recoverable?: boolean;
   } = {}
-): void {
-  trackError(getErrorType(error), {
-    ...context,
-    stackSummary: getStackSummary(error),
-  });
-}
+): void {}
 
-let onboardingStartTime: number | null = null;
-
-export function trackOnboardingStarted(): void {
-  onboardingStartTime = Date.now();
-  trackEvent({ name: 'onboarding_started', properties: {} });
-}
+export function trackOnboardingStarted(): void {}
 
 export function trackOnboardingProviderSelected(
-  method: 'api_key' | 'openrouter' | 'tetrate' | 'chatgpt_codex' | 'ollama' | 'local' | 'other'
-): void {
-  trackEvent({
-    name: 'onboarding_provider_selected',
-    properties: { method },
-  });
-}
+  _method: 'api_key' | 'openrouter' | 'tetrate' | 'chatgpt_codex' | 'ollama' | 'local' | 'other'
+): void {}
 
-export function trackOnboardingCompleted(provider: string, model?: string): void {
-  const durationSeconds = onboardingStartTime
-    ? Math.round((Date.now() - onboardingStartTime) / 1000)
-    : undefined;
+export function trackOnboardingCompleted(_provider: string, _model?: string): void {}
 
-  trackEvent({
-    name: 'onboarding_completed',
-    properties: { provider, model, duration_seconds: durationSeconds },
-  });
-  onboardingStartTime = null;
-}
-
-export function trackOnboardingAbandoned(step: string): void {
-  const durationSeconds = onboardingStartTime
-    ? Math.round((Date.now() - onboardingStartTime) / 1000)
-    : undefined;
-
-  trackEvent({
-    name: 'onboarding_abandoned',
-    properties: { step, duration_seconds: durationSeconds },
-  });
-  onboardingStartTime = null;
-}
+export function trackOnboardingAbandoned(_step: string): void {}
 
 export function trackOnboardingSetupFailed(
-  provider: 'openrouter' | 'tetrate' | 'chatgpt_codex' | 'local',
-  errorMessage?: string
-): void {
-  trackEvent({
-    name: 'onboarding_setup_failed',
-    properties: { provider, error_message: errorMessage },
-  });
-}
+  _provider: 'openrouter' | 'tetrate' | 'chatgpt_codex' | 'local',
+  _errorMessage?: string
+): void {}
 
-export function trackModelChanged(provider: string, model: string): void {
-  trackEvent({
-    name: 'model_changed',
-    properties: { provider, model },
-  });
-}
+export function trackModelChanged(_provider: string, _model: string): void {}
 
-export function trackSettingsTabViewed(tab: string): void {
-  trackEvent({
-    name: 'settings_tab_viewed',
-    properties: { tab },
-  });
-}
+export function trackSettingsTabViewed(_tab: string): void {}
 
-export function trackSettingToggled(setting: string, enabled: boolean): void {
-  trackEvent({
-    name: 'setting_toggled',
-    properties: { setting, enabled },
-  });
-}
+export function trackSettingToggled(_setting: string, _enabled: boolean): void {}
 
 export function trackTelemetryPreference(
-  enabled: boolean,
-  location: 'settings' | 'onboarding' | 'modal'
-): void {
-  // Always send this event, even if telemetry is disabled
-  // This is the one exception - we need to know opt-out rates
-  sendEvent('telemetry_preference_set', { enabled, location });
-}
+  _enabled: boolean,
+  _location: 'settings' | 'onboarding' | 'modal'
+): void {}
 
 export function getErrorType(error: unknown): string {
   if (error instanceof Error) {
@@ -317,12 +180,9 @@ export function getStackSummary(error: unknown): string | undefined {
     return undefined;
   }
 
-  // Extract just the function/component names from the stack
-  // Skip error message, take top 4 frames
   const lines = error.stack.split('\n').slice(1, 5);
   const frames = lines
     .map((line) => {
-      // Match function names like "at ComponentName" or "at Object.functionName"
       const match = line.match(/at\s+([A-Za-z0-9_$.]+)/);
       return match ? match[1] : null;
     })
@@ -331,150 +191,46 @@ export function getStackSummary(error: unknown): string | undefined {
   return frames.length > 0 ? frames.join(' > ') : undefined;
 }
 
-// ============================================================================
-// Chat Input Bar Feature Tracking
-// ============================================================================
-
-export function trackFileAttached(fileType: 'file' | 'directory'): void {
-  trackEvent({
-    name: 'input_file_attached',
-    properties: { file_type: fileType },
-  });
-}
+export function trackFileAttached(_fileType: 'file' | 'directory'): void {}
 
 export function trackVoiceDictation(
-  action: 'start' | 'stop' | 'transcribed' | 'error' | 'auto_submit',
-  durationSeconds?: number,
-  errorType?: string
-): void {
-  trackEvent({
-    name: 'input_voice_dictation',
-    properties: { action, duration_seconds: durationSeconds, error_type: errorType },
-  });
-}
+  _action: 'start' | 'stop' | 'transcribed' | 'error' | 'auto_submit',
+  _durationSeconds?: number,
+  _errorType?: string
+): void {}
 
-export function trackModeChanged(fromMode: string, toMode: string): void {
-  trackEvent({
-    name: 'input_mode_changed',
-    properties: { from_mode: fromMode, to_mode: toMode },
-  });
-}
+export function trackModeChanged(_fromMode: string, _toMode: string): void {}
 
-export function trackDiagnosticsOpened(): void {
-  trackEvent({
-    name: 'input_diagnostics_opened',
-    properties: {},
-  });
-}
-
-// ============================================================================
-// Auto-Update Tracking
-// ============================================================================
-
-type UpdateMethod = 'electron-updater' | 'github-fallback';
-
-let updateDownloadStartTime: number | null = null;
-let currentUpdateVersion: string | null = null;
-let currentUpdateMethod: UpdateMethod | null = null;
-let reportedMilestones: Set<25 | 50 | 75 | 100> = new Set();
+export function trackDiagnosticsOpened(): void {}
 
 export function trackUpdateCheckStarted(
-  trigger: 'startup' | 'manual',
-  currentVersion: string
-): void {
-  trackEvent({
-    name: 'update_check_started',
-    properties: { trigger, current_version: currentVersion },
-  });
-}
+  _trigger: 'startup' | 'manual',
+  _currentVersion: string
+): void {}
 
 export function trackUpdateCheckCompleted(
-  result: 'available' | 'not_available' | 'error',
-  currentVersion: string,
-  options: {
+  _result: 'available' | 'not_available' | 'error',
+  _currentVersion: string,
+  _options: {
     latestVersion?: string;
     usingFallback: boolean;
     errorType?: string;
   }
-): void {
-  trackEvent({
-    name: 'update_check_completed',
-    properties: {
-      result,
-      current_version: currentVersion,
-      latest_version: options.latestVersion,
-      using_fallback: options.usingFallback,
-      error_type: options.errorType,
-    },
-  });
-}
+): void {}
 
-export function trackUpdateDownloadStarted(version: string, method: UpdateMethod): void {
-  updateDownloadStartTime = Date.now();
-  currentUpdateVersion = version;
-  currentUpdateMethod = method;
-  reportedMilestones = new Set();
+export function trackUpdateDownloadStarted(_version: string, _method: UpdateMethod): void {}
 
-  trackEvent({
-    name: 'update_download_started',
-    properties: { version, method },
-  });
-}
-
-export function trackUpdateDownloadProgress(percent: number): void {
-  if (!currentUpdateVersion || !currentUpdateMethod) return;
-
-  const milestones: Array<25 | 50 | 75 | 100> = [25, 50, 75, 100];
-  for (const milestone of milestones) {
-    if (percent >= milestone && !reportedMilestones.has(milestone)) {
-      reportedMilestones.add(milestone);
-      trackEvent({
-        name: 'update_download_progress',
-        properties: {
-          milestone,
-          version: currentUpdateVersion,
-          method: currentUpdateMethod,
-        },
-      });
-    }
-  }
-}
+export function trackUpdateDownloadProgress(_percent: number): void {}
 
 export function trackUpdateDownloadCompleted(
-  success: boolean,
-  version: string,
-  method: UpdateMethod,
-  errorType?: string
-): void {
-  const durationSeconds = updateDownloadStartTime
-    ? Math.round((Date.now() - updateDownloadStartTime) / 1000)
-    : undefined;
-
-  trackEvent({
-    name: 'update_download_completed',
-    properties: {
-      success,
-      version,
-      method,
-      duration_seconds: durationSeconds,
-      error_type: errorType,
-    },
-  });
-
-  // Reset state
-  updateDownloadStartTime = null;
-  currentUpdateVersion = null;
-  currentUpdateMethod = null;
-  reportedMilestones = new Set();
-}
+  _success: boolean,
+  _version: string,
+  _method: UpdateMethod,
+  _errorType?: string
+): void {}
 
 export function trackUpdateInstallInitiated(
-  version: string,
-  method: UpdateMethod,
-  action: 'quit_and_install' | 'open_folder_and_quit' | 'open_folder_only'
-): void {
-  trackEvent({
-    name: 'update_install_initiated',
-    properties: { version, method, action },
-  });
-}
+  _version: string,
+  _method: UpdateMethod,
+  _action: 'quit_and_install' | 'open_folder_and_quit' | 'open_folder_only'
+): void {}

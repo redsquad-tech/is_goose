@@ -1,22 +1,5 @@
-import { AppEvents } from '../constants/events';
-/**
- * Hub Component
- *
- * The Hub is the main landing page and entry point for the Goose Desktop application.
- * It serves as the welcome screen where users can start new conversations.
- *
- * Key Responsibilities:
- * - Displays SessionInsights to show session statistics and recent chats
- * - Provides a ChatInput for users to start new conversations
- * - Creates a new session and navigates to Pair with the session ID
- * - Shows loading state while session is being created
- *
- * Navigation Flow:
- * Hub (input submission) → Create Session → Pair (with session ID and initial message)
- */
-
 import { useState } from 'react';
-import { SessionInsights } from './sessions/SessionsInsights';
+import { AppEvents } from '../constants/events';
 import ChatInput from './ChatInput';
 import { ChatState } from '../types/chatState';
 import 'react-toastify/dist/ReactToastify.css';
@@ -25,6 +8,11 @@ import { getInitialWorkingDir } from '../utils/workingDir';
 import { createSession } from '../sessions';
 import LoadingGoose from './LoadingGoose';
 import { UserInput } from '../types/message';
+import { MainPanelLayout } from './Layout/MainPanelLayout';
+import { ScrollArea } from './ui/scroll-area';
+import PopularChatTopics from './PopularChatTopics';
+import { Goose } from './icons';
+import EnvironmentBadge from './GooseSidebar/EnvironmentBadge';
 
 export default function Hub({
   setView,
@@ -62,36 +50,58 @@ export default function Hub({
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-background-secondary">
-      <div className="flex-1 flex flex-col min-h-[45vh] overflow-hidden mb-0.5 relative">
-        <SessionInsights />
-        {isCreatingSession && (
-          <div className="absolute bottom-1 left-4 z-20 pointer-events-none">
-            <LoadingGoose chatState={ChatState.LoadingConversation} />
+    <div className="h-full flex flex-col min-h-0">
+      <MainPanelLayout backgroundColor="bg-background-secondary" removeTopPadding>
+        <div className="flex flex-col flex-1 mb-0.5 min-h-0 relative">
+          <div className="absolute top-3 right-4 z-[60] flex flex-row items-center gap-1">
+            <a
+              href="https://block.github.io/goose"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="no-drag flex flex-row items-center gap-1 hover:opacity-80 transition-opacity"
+            >
+              <Goose className="size-5 goose-icon-animation" />
+              <span className="text-sm leading-none text-text-secondary -translate-y-px">
+                goose
+              </span>
+            </a>
+            <EnvironmentBadge className="translate-y-px" />
           </div>
-        )}
-      </div>
 
-      <div className="flex-shrink-0 max-h-[50vh] min-h-0 overflow-hidden flex flex-col">
-        <ChatInput
-          sessionId={null}
-          handleSubmit={handleSubmit}
-          chatState={isCreatingSession ? ChatState.LoadingConversation : ChatState.Idle}
-          onStop={() => {}}
-          initialValue=""
-          setView={setView}
-          totalTokens={0}
-          accumulatedInputTokens={0}
-          accumulatedOutputTokens={0}
-          droppedFiles={[]}
-          onFilesProcessed={() => {}}
-          messages={[]}
-          disableAnimation={false}
-          sessionCosts={undefined}
-          toolCount={0}
-          onWorkingDirChange={setWorkingDir}
-        />
-      </div>
+          <ScrollArea
+            className="flex-1 bg-background-primary rounded-b-2xl min-h-0 relative pr-1 pb-10 pt-10"
+            paddingX={6}
+            paddingY={0}
+          >
+            <PopularChatTopics
+              append={(text: string) => void handleSubmit({ msg: text, images: [] })}
+            />
+          </ScrollArea>
+
+          {isCreatingSession && (
+            <div className="absolute bottom-1 left-4 z-20 pointer-events-none">
+              <LoadingGoose chatState={ChatState.LoadingConversation} />
+            </div>
+          )}
+        </div>
+
+        <div className="relative z-10">
+          <ChatInput
+            sessionId={null}
+            handleSubmit={handleSubmit}
+            chatState={isCreatingSession ? ChatState.LoadingConversation : ChatState.Idle}
+            onStop={() => {}}
+            initialValue=""
+            totalTokens={0}
+            droppedFiles={[]}
+            onFilesProcessed={() => {}}
+            messages={[]}
+            disableAnimation={false}
+            toolCount={0}
+            onWorkingDirChange={setWorkingDir}
+          />
+        </div>
+      </MainPanelLayout>
     </div>
   );
 }

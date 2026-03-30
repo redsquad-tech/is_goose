@@ -11,7 +11,6 @@ import {
   Session,
   TokenState,
   updateFromSession,
-  listApps,
 } from '../api';
 
 import {
@@ -23,7 +22,6 @@ import {
   UserInput,
 } from '../types/message';
 import { errorMessage } from '../utils/conversionUtils';
-import { maybeHandlePlatformEvent } from '../utils/platform_events';
 
 const resultsCache = new Map<string, { messages: Message[]; session: Session }>();
 
@@ -202,8 +200,7 @@ async function streamFromResponse(
   stream: AsyncIterable<MessageEvent>,
   initialMessages: Message[],
   dispatch: React.Dispatch<StreamAction>,
-  onFinish: (error?: string) => void,
-  sessionId: string
+  onFinish: (error?: string) => void
 ): Promise<void> {
   let currentMessages = initialMessages;
   const reduceMotion = prefersReducedMotion();
@@ -298,7 +295,6 @@ async function streamFromResponse(
         }
         case 'Notification': {
           dispatch({ type: 'ADD_NOTIFICATION', payload: event as NotificationEvent });
-          maybeHandlePlatformEvent(event.message, sessionId);
           break;
         }
         case 'Ping':
@@ -470,13 +466,6 @@ export function useChatStream({
           },
         });
 
-        listApps({
-          throwOnError: true,
-          query: { session_id: sessionId },
-        }).catch((err) => {
-          console.warn('Failed to populate apps cache:', err);
-        });
-
         onSessionLoaded?.();
       } catch (error) {
         if (cancelled) return;
@@ -586,7 +575,7 @@ export function useChatStream({
           signal: abortControllerRef.current.signal,
         });
 
-        await streamFromResponse(stream, currentMessages, dispatch, onFinish, sessionId);
+        await streamFromResponse(stream, currentMessages, dispatch, onFinish);
       } catch (error) {
         // AbortError is expected when user stops streaming
         if (error instanceof Error && error.name === 'AbortError') {
@@ -627,7 +616,7 @@ export function useChatStream({
           signal: abortControllerRef.current.signal,
         });
 
-        await streamFromResponse(stream, currentMessages, dispatch, onFinish, sessionId);
+        await streamFromResponse(stream, currentMessages, dispatch, onFinish);
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') {
           // Silently handle abort
@@ -734,7 +723,7 @@ export function useChatStream({
                 signal: abortControllerRef.current.signal,
               });
 
-              await streamFromResponse(stream, messagesForUI, dispatch, onFinish, targetSessionId);
+              await streamFromResponse(stream, messagesForUI, dispatch, onFinish);
             } catch (error) {
               if (error instanceof Error && error.name === 'AbortError') {
                 dispatch({ type: 'SET_CHAT_STATE', payload: ChatState.Idle });

@@ -13,8 +13,6 @@ import { type SharedSessionDetails } from './sharedSessions';
 import { ErrorUI } from './components/ErrorBoundary';
 import { ToastContainer } from 'react-toastify';
 import AnnouncementModal from './components/AnnouncementModal';
-import TelemetryOptOutModal from './components/TelemetryOptOutModal';
-import ProviderGuard from './components/ProviderGuard';
 import { createSession } from './sessions';
 
 import { ChatType } from './types/chat';
@@ -25,34 +23,21 @@ interface PairRouteState {
   resumeSessionId?: string;
   initialMessage?: UserInput;
 }
-import SettingsView, { SettingsViewOptions } from './components/settings/SettingsView';
 import SessionsView from './components/sessions/SessionsView';
 import SharedSessionView from './components/sessions/SharedSessionView';
-import ProviderSettings from './components/settings/providers/ProviderSettingsPage';
 import { AppLayout } from './components/Layout/AppLayout';
 import { ChatProvider, DEFAULT_CHAT_TITLE } from './contexts/ChatContext';
 import LauncherView from './components/LauncherView';
 
 import 'react-toastify/dist/ReactToastify.css';
-import { ModelAndProviderProvider } from './components/ModelAndProviderContext';
 import { ThemeProvider } from './contexts/ThemeContext';
-
-import AppsView from './components/apps/AppsView';
-import StandaloneAppView from './components/apps/StandaloneAppView';
 import { View, ViewOptions } from './utils/navigationUtils';
 
 import { useNavigation } from './hooks/useNavigation';
 import { errorMessage } from './utils/conversionUtils';
 import { getInitialWorkingDir } from './utils/workingDir';
-import { usePageViewTracking } from './hooks/useAnalytics';
-import { trackOnboardingCompleted, trackErrorWithContext } from './utils/analytics';
+import { trackErrorWithContext } from './utils/analytics';
 import { AppEvents } from './constants/events';
-import { registerPlatformEventHandlers } from './utils/platform_events';
-
-function PageViewTracker() {
-  usePageViewTracking();
-  return null;
-}
 
 // Route Components
 const HubRouteWrapper = () => {
@@ -138,64 +123,8 @@ const PairRouteWrapper = ({
   return null;
 };
 
-const SettingsRoute = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const setView = useNavigation();
-
-  // Get viewOptions from location.state, history.state, or URL search params
-  const viewOptions =
-    (location.state as SettingsViewOptions) || (window.history.state as SettingsViewOptions) || {};
-
-  // If section is provided via URL search params, add it to viewOptions
-  const sectionFromUrl = searchParams.get('section');
-  if (sectionFromUrl) {
-    viewOptions.section = sectionFromUrl;
-  }
-
-  return <SettingsView onClose={() => navigate('/')} setView={setView} viewOptions={viewOptions} />;
-};
-
 const SessionsRoute = () => {
   return <SessionsView />;
-};
-
-const ConfigureProvidersRoute = () => {
-  const navigate = useNavigate();
-
-  return (
-    <div className="w-screen h-screen bg-background-primary">
-      <ProviderSettings
-        onClose={() => navigate('/settings', { state: { section: 'models' } })}
-        isOnboarding={false}
-      />
-    </div>
-  );
-};
-
-interface WelcomeRouteProps {
-  onSelectProvider: () => void;
-}
-
-const WelcomeRoute = ({ onSelectProvider }: WelcomeRouteProps) => {
-  const navigate = useNavigate();
-
-  return (
-    <div className="w-screen h-screen bg-background-primary">
-      <ProviderSettings
-        onClose={() => {
-          navigate('/', { replace: true });
-        }}
-        isOnboarding={true}
-        onProviderLaunched={(model?: string) => {
-          trackOnboardingCompleted('other', model);
-          onSelectProvider();
-          navigate('/', { replace: true });
-        }}
-      />
-    </div>
-  );
 };
 
 // Wrapper component for SharedSessionRoute to access parent state
@@ -243,7 +172,6 @@ export function AppInner() {
   const [fatalError, setFatalError] = useState<string | null>(null);
   const [isLoadingSharedSession, setIsLoadingSharedSession] = useState(false);
   const [sharedSessionError, setSharedSessionError] = useState<string | null>(null);
-  const [didSelectProvider, setDidSelectProvider] = useState<boolean>(false);
 
   const navigate = useNavigate();
 
@@ -436,12 +364,8 @@ export function AppInner() {
       console.log(
         `Received view change request to: ${newView}${section ? `, section: ${section}` : ''}`
       );
-
-      if (section && newView === 'settings') {
-        navigate(`/settings?section=${section}`);
-      } else {
-        navigate(`/${newView}`);
-      }
+      void section;
+      navigate(`/${newView}`);
     };
 
     window.electron.on('set-view', handleSetView);
@@ -505,18 +429,12 @@ export function AppInner() {
     };
   }, [navigate]);
 
-  // Register platform event handlers for app lifecycle management
-  useEffect(() => {
-    return registerPlatformEventHandlers();
-  }, []);
-
   if (fatalError) {
     return <ErrorUI error={errorMessage(fatalError)} />;
   }
 
   return (
     <>
-      <PageViewTracker />
       <ToastContainer
         aria-label="Toast notifications"
         toastClassName={() =>
@@ -538,19 +456,11 @@ export function AppInner() {
           <Routes>
             <Route path="launcher" element={<LauncherView />} />
             <Route
-              path="welcome"
-              element={<WelcomeRoute onSelectProvider={() => setDidSelectProvider(true)} />}
-            />
-            <Route path="configure-providers" element={<ConfigureProvidersRoute />} />
-            <Route path="standalone-app" element={<StandaloneAppView />} />
-            <Route
               path="/"
               element={
-                <ProviderGuard didSelectProvider={didSelectProvider}>
-                  <ChatProvider chat={chat} setChat={setChat} contextKey="hub">
-                    <AppLayout activeSessions={activeSessions} />
-                  </ChatProvider>
-                </ProviderGuard>
+                <ChatProvider chat={chat} setChat={setChat} contextKey="hub">
+                  <AppLayout activeSessions={activeSessions} />
+                </ChatProvider>
               }
             >
               <Route index element={<HubRouteWrapper />} />
@@ -563,8 +473,6 @@ export function AppInner() {
                   />
                 }
               />
-              <Route path="settings" element={<SettingsRoute />} />
-              <Route path="apps" element={<AppsView />} />
               <Route path="sessions" element={<SessionsRoute />} />
               <Route
                 path="shared-session"
@@ -587,13 +495,10 @@ export function AppInner() {
 export default function App() {
   return (
     <ThemeProvider>
-      <ModelAndProviderProvider>
-        <HashRouter>
-          <AppInner />
-        </HashRouter>
-        <AnnouncementModal />
-        <TelemetryOptOutModal controlled={false} />
-      </ModelAndProviderProvider>
+      <HashRouter>
+        <AppInner />
+      </HashRouter>
+      <AnnouncementModal />
     </ThemeProvider>
   );
 }
