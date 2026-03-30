@@ -18,9 +18,8 @@ const HelpText = () => (
       the communication with Goose.
     </p>
     <p>
-      Please make sure <span className="font-bold">Developer</span> extension is enabled in the
-      extensions page. This extension is required to use .goosehints. You'll need to restart your
-      session for .goosehints updates to take effect.
+      Please make sure the backend has the required developer tooling enabled for `.goosehints`.
+      You'll need to restart your session for `.goosehints` updates to take effect.
     </p>
     <p>
       See{' '}

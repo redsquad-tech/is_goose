@@ -1,6 +1,6 @@
 import { AppEvents } from '../constants/events';
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { Bug, ChefHat, ScrollText } from 'lucide-react';
+import { Bug, ScrollText } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/Tooltip';
 import { Button } from './ui/button';
 import type { View } from '../utils/navigationUtils';
@@ -12,7 +12,6 @@ import { LocalMessageStorage } from '../utils/localMessageStorage';
 import { DirSwitcher } from './bottom_menu/DirSwitcher';
 import ModelsBottomBar from './settings/models/bottom_bar/ModelsBottomBar';
 import { BottomMenuModeSelection } from './bottom_menu/BottomMenuModeSelection';
-import { BottomMenuExtensionSelection } from './bottom_menu/BottomMenuExtensionSelection';
 import { AlertType, useAlerts } from './alerts';
 import { useConfig } from './ConfigContext';
 import { useModelAndProvider } from './ModelAndProviderContext';
@@ -22,21 +21,16 @@ import MentionPopover, { DisplayItemWithMatch } from './MentionPopover';
 import { COST_TRACKING_ENABLED } from '../updates';
 import { CostTracker } from './bottom_menu/CostTracker';
 import { DroppedFile, useFileDrop } from '../hooks/useFileDrop';
-import { Recipe } from '../recipe';
 import { MessageQueue, QueuedMessage } from './MessageQueue';
 import { detectInterruption } from '../utils/interruptionDetector';
 import { DiagnosticsModal } from './ui/Diagnostics';
 import { getSession, Message } from '../api';
-import CreateRecipeFromSessionModal from './recipes/CreateRecipeFromSessionModal';
-import CreateEditRecipeModal from './recipes/CreateEditRecipeModal';
 import { getInitialWorkingDir } from '../utils/workingDir';
 import { getPredefinedModelsFromEnv } from './settings/models/predefinedModelsUtils';
 import {
   trackFileAttached,
   trackVoiceDictation,
   trackDiagnosticsOpened,
-  trackCreateRecipeOpened,
-  trackEditRecipeOpened,
 } from '../utils/analytics';
 import { getNavigationShortcutText } from '../utils/keyboardShortcuts';
 import { UserInput, ImageData } from '../types/message';
@@ -82,10 +76,6 @@ interface ChatInputProps {
     };
   };
   disableAnimation?: boolean;
-  recipe?: Recipe | null;
-  recipeId?: string | null;
-  recipeAccepted?: boolean;
-  initialPrompt?: string;
   toolCount: number;
   append?: (message: Message) => void;
   onWorkingDirChange?: (newDir: string) => void;
@@ -106,13 +96,9 @@ export default function ChatInput({
   totalTokens,
   accumulatedInputTokens,
   accumulatedOutputTokens,
-  messages = [],
+  messages: _messages = [],
   disableAnimation = false,
   sessionCosts,
-  recipe,
-  recipeId,
-  recipeAccepted,
-  initialPrompt,
   toolCount,
   append: _append,
   onWorkingDirChange,
@@ -143,8 +129,6 @@ export default function ChatInput({
   const [tokenLimit, setTokenLimit] = useState<number>(TOKEN_LIMIT_DEFAULT);
   const [isTokenLimitLoaded, setIsTokenLimitLoaded] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
-  const [showCreateRecipeModal, setShowCreateRecipeModal] = useState(false);
-  const [showEditRecipeModal, setShowEditRecipeModal] = useState(false);
   const [sessionWorkingDir, setSessionWorkingDir] = useState<string | null>(null);
 
   useEffect(() => {
@@ -311,18 +295,6 @@ export default function ChatInput({
     setHasUserTyped(false);
   }, [initialValue]);
 
-  // Handle recipe prompt updates
-  useEffect(() => {
-    // If recipe is accepted and we have an initial prompt, and no messages yet, and we haven't set it before
-    if (recipeAccepted && initialPrompt && messages.length === 0) {
-      setDisplayValue(initialPrompt);
-      setValue(initialPrompt);
-      setTimeout(() => {
-        textAreaRef.current?.focus();
-      }, 0);
-    }
-  }, [recipeAccepted, initialPrompt, messages.length, textAreaRef]);
-
   const [isComposing, setIsComposing] = useState(false);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [savedInput, setSavedInput] = useState('');
@@ -451,10 +423,6 @@ export default function ChatInput({
       addAlert({
         type: AlertType.Warning,
         message: `Too many tools can degrade performance.\nTool count: ${toolCount} (recommend: ${TOOLS_MAX_SUGGESTED})`,
-        action: {
-          text: 'View extensions',
-          onClick: () => setView('extensions'),
-        },
         autoShow: false, // Don't auto-show tool count warnings
       });
     }
@@ -1525,38 +1493,6 @@ export default function ChatInput({
           </Tooltip>
           <div className="w-px h-4 bg-border-primary mx-2" />
           <BottomMenuModeSelection />
-          <div className="w-px h-4 bg-border-primary mx-2" />
-          <BottomMenuExtensionSelection sessionId={sessionId} />
-          {sessionId && messages.length > 0 && (
-            <>
-              <div className="w-px h-4 bg-border-primary mx-2" />
-              <div className="flex items-center h-full">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      onClick={() => {
-                        if (recipe) {
-                          trackEditRecipeOpened();
-                          setShowEditRecipeModal(true);
-                        } else {
-                          trackCreateRecipeOpened();
-                          setShowCreateRecipeModal(true);
-                        }
-                      }}
-                      variant="ghost"
-                      size="sm"
-                      className="flex items-center justify-center text-text-primary/70 hover:text-text-primary text-xs cursor-pointer"
-                    >
-                      <ChefHat size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {recipe ? 'View/Edit Recipe' : 'Create Recipe from Session'}
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </>
-          )}
           {sessionId && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -1598,23 +1534,6 @@ export default function ChatInput({
           }
           workingDir={sessionWorkingDir ?? getInitialWorkingDir()}
         />
-
-        {sessionId && showCreateRecipeModal && (
-          <CreateRecipeFromSessionModal
-            isOpen={showCreateRecipeModal}
-            onClose={() => setShowCreateRecipeModal(false)}
-            sessionId={sessionId}
-          />
-        )}
-
-        {recipe && showEditRecipeModal && (
-          <CreateEditRecipeModal
-            isOpen={showEditRecipeModal}
-            onClose={() => setShowEditRecipeModal(false)}
-            recipe={recipe}
-            recipeId={recipeId}
-          />
-        )}
       </div>
     </div>
   );

@@ -3,7 +3,6 @@
  */
 export enum AppEvents {
   SESSION_CREATED = 'session-created',
-  SESSION_EXTENSIONS_LOADED = 'session-extensions-loaded',
   SESSION_DELETED = 'session-deleted',
   SESSION_RENAMED = 'session-renamed',
   SESSION_FORKED = 'session-forked',

@@ -8,16 +8,15 @@ import {
   useState,
 } from 'react';
 import { ItemIcon } from './ItemIcon';
-import { CommandType, getSlashCommands } from '../api';
+import { getSlashCommands } from '../api';
 import { getInitialWorkingDir } from '../utils/workingDir';
 
-type DisplayItemType = CommandType | 'Directory' | 'File';
+type DisplayItemType = 'Builtin' | 'Directory' | 'File';
 
 const typeOrder: Record<DisplayItemType, number> = {
   Directory: 0,
   File: 1,
   Builtin: 2,
-  Recipe: 3,
 };
 
 export interface DisplayItem {
@@ -460,12 +459,14 @@ const MentionPopover = forwardRef<
       const loadData = async () => {
         if (isSlashCommand) {
           const response = await getSlashCommands({ throwOnError: true });
-          const commandItems: DisplayItem[] = (response.data?.commands || []).map((cmd) => ({
-            name: cmd.command,
-            extra: cmd.help,
-            itemType: cmd.command_type,
-            relativePath: cmd.command,
-          }));
+          const commandItems: DisplayItem[] = (response.data?.commands || [])
+            .filter((cmd) => cmd.command_type === 'Builtin')
+            .map((cmd) => ({
+              name: cmd.command,
+              extra: cmd.help,
+              itemType: 'Builtin',
+              relativePath: cmd.command,
+            }));
           setItems(commandItems);
         } else {
           await scanFilesFromRoot();
@@ -510,11 +511,7 @@ const MentionPopover = forwardRef<
       if (index >= 0 && index < displayItems.length) {
         onSelectedIndexChange(index);
         const displayItem = displayItems[index];
-        onSelect(
-          ['Builtin', 'Recipe'].includes(displayItem.itemType)
-            ? '/' + displayItem.name
-            : displayItem.extra
-        );
+        onSelect(displayItem.itemType === 'Builtin' ? '/' + displayItem.name : displayItem.extra);
         onClose();
       }
     };

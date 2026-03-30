@@ -1,18 +1,8 @@
-import { Session, startAgent, ExtensionConfig } from './api';
+import { Session, startAgent } from './api';
 import type { setViewType } from './hooks/useNavigation';
-import {
-  getExtensionConfigsWithOverrides,
-  clearExtensionOverrides,
-  hasExtensionOverrides,
-} from './store/extensionOverrides';
-import type { FixedExtensionEntry } from './components/ConfigContext';
 import { AppEvents } from './constants/events';
-import { decodeRecipe, Recipe } from './recipe';
 
 export function shouldShowNewChatTitle(session: Session): boolean {
-  if (session.recipe) {
-    return false;
-  }
   return !session.user_set_name && session.message_count === 0;
 }
 
@@ -35,42 +25,12 @@ export function resumeSession(session: Session, setView: setViewType) {
 }
 
 export async function createSession(
-  workingDir: string,
-  options?: {
-    recipeDeeplink?: string;
-    recipeId?: string;
-    extensionConfigs?: ExtensionConfig[];
-    allExtensions?: FixedExtensionEntry[];
-  }
+  workingDir: string
 ): Promise<Session> {
-  const body: {
-    working_dir: string;
-    scopes: string[];
-    recipe?: Recipe;
-    recipe_id?: string;
-    extension_overrides?: ExtensionConfig[];
-  } = {
+  const body = {
     working_dir: workingDir,
     scopes: ['croc_test_260325'],
   };
-
-  if (options?.recipeId) {
-    body.recipe_id = options.recipeId;
-  } else if (options?.recipeDeeplink) {
-    body.recipe = await decodeRecipe(options.recipeDeeplink);
-  }
-
-  if (options?.extensionConfigs && options.extensionConfigs.length > 0) {
-    body.extension_overrides = options.extensionConfigs;
-  } else if (options?.allExtensions) {
-    const extensionConfigs = getExtensionConfigsWithOverrides(options.allExtensions);
-    if (extensionConfigs.length > 0) {
-      body.extension_overrides = extensionConfigs;
-    }
-    if (hasExtensionOverrides()) {
-      clearExtensionOverrides();
-    }
-  }
 
   const newAgent = await startAgent({
     body,
@@ -82,14 +42,9 @@ export async function createSession(
 export async function startNewSession(
   initialText: string | undefined,
   setView: setViewType,
-  workingDir: string,
-  options?: {
-    recipeDeeplink?: string;
-    recipeId?: string;
-    allExtensions?: FixedExtensionEntry[];
-  }
+  workingDir: string
 ): Promise<Session> {
-  const session = await createSession(workingDir, options);
+  const session = await createSession(workingDir);
   window.dispatchEvent(new CustomEvent(AppEvents.SESSION_CREATED, { detail: { session } }));
 
   const initialMessage = initialText ? { msg: initialText, images: [] } : undefined;

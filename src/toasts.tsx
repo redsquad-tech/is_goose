@@ -4,10 +4,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './components/ui/Tooltip
 import Copy from './components/icons/Copy';
 import { startNewSession } from './sessions';
 import { useNavigation } from './hooks/useNavigation';
-import {
-  GroupedExtensionLoadingToast,
-  ExtensionLoadingStatus,
-} from './components/GroupedExtensionLoadingToast';
 import { getInitialWorkingDir } from './utils/workingDir';
 
 export interface ToastServiceOptions {
@@ -71,58 +67,6 @@ class ToastService {
   }
 
   /**
-   * Create a grouped extension loading toast that can be updated as extensions load
-   */
-  extensionLoading(
-    extensions: ExtensionLoadingStatus[],
-    totalCount: number,
-    isComplete: boolean = false
-  ): string | number {
-    if (this.silent) {
-      return 'silent';
-    }
-
-    const toastId = 'extension-loading';
-    const hasErrors = extensions.some((ext) => ext.status === 'error');
-    const autoClose = isComplete && !hasErrors ? 5000 : false;
-
-    // Check if toast already exists
-    if (toast.isActive(toastId)) {
-      // Update existing toast
-      toast.update(toastId, {
-        render: (
-          <GroupedExtensionLoadingToast
-            extensions={extensions}
-            totalCount={totalCount}
-            isComplete={isComplete}
-          />
-        ),
-        autoClose,
-        closeButton: true,
-        closeOnClick: false,
-      });
-    } else {
-      // Create new toast
-      toast(
-        <GroupedExtensionLoadingToast
-          extensions={extensions}
-          totalCount={totalCount}
-          isComplete={isComplete}
-        />,
-        {
-          ...commonToastOptions,
-          toastId,
-          autoClose,
-          closeButton: true,
-          closeOnClick: false, // Prevent closing when clicking to expand/collapse
-        }
-      );
-    }
-
-    return toastId;
-  }
-
-  /**
    * Handle errors with consistent logging and toast notifications
    * Consolidates the functionality of the original handleError function
    */
@@ -138,9 +82,6 @@ class ToastService {
 
 // Export a singleton instance for use throughout the app
 export const toastService = ToastService.getInstance();
-
-// Re-export ExtensionLoadingStatus for convenience
-export type { ExtensionLoadingStatus };
 
 const commonToastOptions: ToastOptions = {
   position: 'top-right',

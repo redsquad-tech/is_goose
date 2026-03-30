@@ -118,7 +118,7 @@ export default function TelemetryOptOutModal(props: TelemetryOptOutModalProps) {
             <li>Operating system, version, and architecture</li>
             <li>goose version and install method</li>
             <li>Provider and model used</li>
-            <li>Extensions and tool usage counts (names only)</li>
+            <li>Runtime capability and tool usage counts (names only)</li>
             <li>Session metrics (duration, interaction count, token usage)</li>
             <li>Error types (e.g., "rate_limit", "auth" - no details)</li>
           </ul>

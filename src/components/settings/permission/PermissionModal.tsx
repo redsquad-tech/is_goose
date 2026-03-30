@@ -160,8 +160,8 @@ export default function PermissionModal({ extensionName, onClose }: PermissionMo
               <AlertCircle className="h-12 w-12 text-text-secondary mb-4" />
               <p className="text-text-primary font-medium mb-2">No active session</p>
               <p className="text-sm text-text-secondary max-w-sm">
-                Start a chat session first to configure tool permissions for this extension. Tool
-                permissions are loaded from the active session's extensions.
+                Start a chat session first to configure tool permissions. Tool permissions are
+                loaded from the active session.
               </p>
             </div>
           ) : loadError === 'fetch_failed' ? (
@@ -169,13 +169,12 @@ export default function PermissionModal({ extensionName, onClose }: PermissionMo
               <AlertCircle className="h-12 w-12 text-text-secondary mb-4" />
               <p className="text-text-primary font-medium mb-2">Failed to load tools</p>
               <p className="text-sm text-text-secondary max-w-sm">
-                Could not load tools for this extension. The extension may not be loaded in the
-                current session.
+                Could not load tools for this runtime capability in the current session.
               </p>
             </div>
           ) : tools.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
-              <p className="text-text-secondary">No tools available for this extension.</p>
+              <p className="text-text-secondary">No tools available for this runtime capability.</p>
             </div>
           ) : (
             <div className="space-y-4">

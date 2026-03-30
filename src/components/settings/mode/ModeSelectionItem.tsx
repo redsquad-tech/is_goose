@@ -18,7 +18,7 @@ export const all_goose_modes: GooseMode[] = [
   {
     key: 'approve',
     label: 'Manual',
-    description: 'All tools, extensions and file modifications will require human approval',
+    description: 'All tools and file modifications will require human approval',
   },
   {
     key: 'smart_approve',
@@ -28,7 +28,7 @@ export const all_goose_modes: GooseMode[] = [
   {
     key: 'chat',
     label: 'Chat only',
-    description: 'Engage with the selected provider without using tools or extensions.',
+    description: 'Engage with the selected provider without using tools.',
   },
 ];
 

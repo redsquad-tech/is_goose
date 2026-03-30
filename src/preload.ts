@@ -1,5 +1,4 @@
 import Electron, { contextBridge, ipcRenderer, webUtils } from 'electron';
-import { Recipe } from './recipe';
 import { GooseApp } from './api';
 import type { Settings, SettingKey } from './utils/settings';
 import { defaultSettings } from './utils/settings';
@@ -95,7 +94,6 @@ export interface CreateChatWindowOptions {
   version?: string;
   resumeSessionId?: string;
   viewType?: string;
-  recipeId?: string;
 }
 
 // Define the API types in a single place
@@ -120,7 +118,6 @@ type ElectronAPI = {
   writeFile: (directory: string, content: string) => Promise<boolean>;
   ensureDirectory: (dirPath: string) => Promise<boolean>;
   listFiles: (dirPath: string, extension?: string) => Promise<string[]>;
-  getAllowedExtensions: () => Promise<string[]>;
   getPathForFile: (file: File) => string;
   setMenuBarIcon: (show: boolean) => Promise<boolean>;
   getMenuBarIconState: () => Promise<boolean>;
@@ -162,10 +159,7 @@ type ElectronAPI = {
   onUpdaterEvent: (callback: (event: UpdaterEvent) => void) => void;
   getUpdateState: () => Promise<{ updateAvailable: boolean; latestVersion?: string } | null>;
   isUsingGitHubFallback: () => Promise<boolean>;
-  // Recipe warning functions
   closeWindow: () => void;
-  hasAcceptedRecipeBefore: (recipe: Recipe) => Promise<boolean>;
-  recordRecipeHash: (recipe: Recipe) => Promise<boolean>;
   openDirectoryInExplorer: (directoryPath: string) => Promise<boolean>;
   launchApp: (app: GooseApp) => Promise<void>;
   refreshApp: (app: GooseApp) => Promise<void>;
@@ -211,7 +205,6 @@ const electronAPI: ElectronAPI = {
   listFiles: (dirPath: string, extension?: string) =>
     ipcRenderer.invoke('list-files', dirPath, extension),
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
-  getAllowedExtensions: () => ipcRenderer.invoke('get-allowed-extensions'),
   setMenuBarIcon: (show: boolean) => ipcRenderer.invoke('set-menu-bar-icon', show),
   getMenuBarIconState: () => ipcRenderer.invoke('get-menu-bar-icon-state'),
   setDockIcon: (show: boolean) => ipcRenderer.invoke('set-dock-icon', show),
@@ -310,9 +303,6 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke('is-using-github-fallback');
   },
   closeWindow: () => ipcRenderer.send('close-window'),
-  hasAcceptedRecipeBefore: (recipe: Recipe) =>
-    ipcRenderer.invoke('has-accepted-recipe-before', recipe),
-  recordRecipeHash: (recipe: Recipe) => ipcRenderer.invoke('record-recipe-hash', recipe),
   openDirectoryInExplorer: (directoryPath: string) =>
     ipcRenderer.invoke('open-directory-in-explorer', directoryPath),
   launchApp: (app: GooseApp) => ipcRenderer.invoke('launch-app', app),

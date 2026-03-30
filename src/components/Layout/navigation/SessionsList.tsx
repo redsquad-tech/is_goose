@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { MessageSquare, ChefHat, Plus, History } from 'lucide-react';
+import { MessageSquare, Plus, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SessionIndicators } from '../../SessionIndicators';
 import { InlineEditText } from '../../common/InlineEditText';
@@ -97,11 +97,7 @@ export const SessionsList: React.FC<SessionsListProps> = ({
                   )}
                 >
                   <div className="w-4 flex-shrink-0" />
-                  {session.recipe ? (
-                    <ChefHat className="w-4 h-4 flex-shrink-0 text-text-secondary" />
-                  ) : (
-                    <MessageSquare className="w-4 h-4 flex-shrink-0 text-text-secondary" />
-                  )}
+                  <MessageSquare className="w-4 h-4 flex-shrink-0 text-text-secondary" />
                   <InlineEditText
                     value={getSessionDisplayName(session)}
                     onSave={(newName) => handleSaveSessionName(session.id, newName)}

@@ -20,14 +20,22 @@ export interface NavigationPreferences {
 export const DEFAULT_ITEM_ORDER = [
   'home',
   'chat',
-  'recipes',
   'apps',
-  'scheduler',
-  'extensions',
   'settings',
 ];
 
 export const DEFAULT_ENABLED_ITEMS = [...DEFAULT_ITEM_ORDER];
+const VALID_NAV_ITEM_IDS = new Set(DEFAULT_ITEM_ORDER);
+
+function sanitizePreferences(preferences: NavigationPreferences): NavigationPreferences {
+  const itemOrder = preferences.itemOrder.filter((item) => VALID_NAV_ITEM_IDS.has(item));
+  const enabledItems = preferences.enabledItems.filter((item) => VALID_NAV_ITEM_IDS.has(item));
+
+  return {
+    itemOrder: itemOrder.length > 0 ? itemOrder : DEFAULT_ITEM_ORDER,
+    enabledItems: enabledItems.length > 0 ? enabledItems : DEFAULT_ENABLED_ITEMS,
+  };
+}
 
 const RESPONSIVE_BREAKPOINT = 700;
 
@@ -103,10 +111,10 @@ export const NavigationProvider: React.FC<NavigationProviderProps> = ({ children
         console.error('Failed to parse navigation preferences');
       }
     }
-    return {
+    return sanitizePreferences({
       itemOrder: DEFAULT_ITEM_ORDER,
       enabledItems: DEFAULT_ENABLED_ITEMS,
-    };
+    });
   });
 
   const [isChatExpanded, setIsChatExpandedState] = useState<boolean>(() => {
@@ -146,9 +154,12 @@ export const NavigationProvider: React.FC<NavigationProviderProps> = ({ children
   }, []);
 
   const updatePreferences = useCallback((newPrefs: NavigationPreferences) => {
-    setPreferences(newPrefs);
-    localStorage.setItem('navigation_preferences', JSON.stringify(newPrefs));
-    window.dispatchEvent(new CustomEvent('navigation-preferences-updated', { detail: newPrefs }));
+    const sanitizedPrefs = sanitizePreferences(newPrefs);
+    setPreferences(sanitizedPrefs);
+    localStorage.setItem('navigation_preferences', JSON.stringify(sanitizedPrefs));
+    window.dispatchEvent(
+      new CustomEvent('navigation-preferences-updated', { detail: sanitizedPrefs })
+    );
   }, []);
 
   const setIsChatExpanded = useCallback((expanded: boolean) => {
@@ -177,7 +188,8 @@ export const NavigationProvider: React.FC<NavigationProviderProps> = ({ children
       setNavigationStyleState((e as CustomEvent).detail.style);
     const handlePositionChange = (e: Event) =>
       setNavigationPositionState((e as CustomEvent).detail.position);
-    const handlePrefsChange = (e: Event) => setPreferences((e as CustomEvent).detail);
+    const handlePrefsChange = (e: Event) =>
+      setPreferences(sanitizePreferences((e as CustomEvent).detail));
 
     window.addEventListener('navigation-mode-changed', handleModeChange);
     window.addEventListener('navigation-style-changed', handleStyleChange);

@@ -12,7 +12,7 @@ export default function ChatSettingsSection() {
       <Card className="pb-2 rounded-lg">
         <CardHeader className="pb-0">
           <CardTitle className="">Mode</CardTitle>
-          <CardDescription>Configure how Goose interacts with tools and extensions</CardDescription>
+          <CardDescription>Configure how Goose interacts with tools and your workspace</CardDescription>
         </CardHeader>
         <CardContent className="px-2">
           <ModeSection />

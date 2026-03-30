@@ -11,7 +11,6 @@ import {
 import { openSharedSessionFromDeepLink } from './sessionLinks';
 import { type SharedSessionDetails } from './sharedSessions';
 import { ErrorUI } from './components/ErrorBoundary';
-import { ExtensionInstallModal } from './components/ExtensionInstallModal';
 import { ToastContainer } from 'react-toastify';
 import AnnouncementModal from './components/AnnouncementModal';
 import TelemetryOptOutModal from './components/TelemetryOptOutModal';
@@ -29,20 +28,15 @@ interface PairRouteState {
 import SettingsView, { SettingsViewOptions } from './components/settings/SettingsView';
 import SessionsView from './components/sessions/SessionsView';
 import SharedSessionView from './components/sessions/SharedSessionView';
-import SchedulesView from './components/schedule/SchedulesView';
 import ProviderSettings from './components/settings/providers/ProviderSettingsPage';
 import { AppLayout } from './components/Layout/AppLayout';
 import { ChatProvider, DEFAULT_CHAT_TITLE } from './contexts/ChatContext';
 import LauncherView from './components/LauncherView';
 
 import 'react-toastify/dist/ReactToastify.css';
-import { useConfig } from './components/ConfigContext';
 import { ModelAndProviderProvider } from './components/ModelAndProviderContext';
 import { ThemeProvider } from './contexts/ThemeContext';
-import PermissionSettingsView from './components/settings/permission/PermissionSetting';
 
-import ExtensionsView, { ExtensionsViewOptions } from './components/extensions/ExtensionsView';
-import RecipesView from './components/recipes/RecipesView';
 import AppsView from './components/apps/AppsView';
 import StandaloneAppView from './components/apps/StandaloneAppView';
 import { View, ViewOptions } from './utils/navigationUtils';
@@ -75,7 +69,6 @@ const PairRouteWrapper = ({
   }>;
   setActiveSessions: (sessions: Array<{ sessionId: string; initialMessage?: UserInput }>) => void;
 }) => {
-  const { extensionsList } = useConfig();
   const location = useLocation();
   const routeState =
     (location.state as PairRouteState) || (window.history.state as PairRouteState) || {};
@@ -83,26 +76,16 @@ const PairRouteWrapper = ({
   const [isCreatingSession, setIsCreatingSession] = useState(false);
 
   const resumeSessionId = searchParams.get('resumeSessionId') ?? undefined;
-  const recipeDeeplinkFromConfig = window.appConfig?.get('recipeDeeplink') as string | undefined;
-  const recipeIdFromConfig = window.appConfig?.get('recipeId') as string | undefined;
   const initialMessage = routeState.initialMessage;
 
-  // Create session if we have an initialMessage, recipeDeeplink, or recipeId but no sessionId
+  // Create session if we have an initialMessage but no sessionId
   useEffect(() => {
-    if (
-      (initialMessage || recipeDeeplinkFromConfig || recipeIdFromConfig) &&
-      !resumeSessionId &&
-      !isCreatingSession
-    ) {
+    if (initialMessage && !resumeSessionId && !isCreatingSession) {
       setIsCreatingSession(true);
 
       (async () => {
         try {
-          const newSession = await createSession(getInitialWorkingDir(), {
-            recipeDeeplink: recipeDeeplinkFromConfig,
-            recipeId: recipeIdFromConfig,
-            allExtensions: extensionsList,
-          });
+          const newSession = await createSession(getInitialWorkingDir());
 
           window.dispatchEvent(
             new CustomEvent(AppEvents.ADD_ACTIVE_SESSION, {
@@ -134,11 +117,8 @@ const PairRouteWrapper = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     initialMessage,
-    recipeDeeplinkFromConfig,
-    recipeIdFromConfig,
     resumeSessionId,
     setSearchParams,
-    extensionsList,
   ]);
 
   // Add resumed session to active sessions if not already there
@@ -179,52 +159,6 @@ const SettingsRoute = () => {
 
 const SessionsRoute = () => {
   return <SessionsView />;
-};
-
-const SchedulesRoute = () => {
-  const navigate = useNavigate();
-  return <SchedulesView onClose={() => navigate('/')} />;
-};
-
-const RecipesRoute = () => {
-  return <RecipesView />;
-};
-
-const PermissionRoute = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const parentView = location.state?.parentView as View;
-  const parentViewOptions = location.state?.parentViewOptions as ViewOptions;
-
-  return (
-    <PermissionSettingsView
-      onClose={() => {
-        // Navigate back to parent view with options
-        switch (parentView) {
-          case 'chat':
-            navigate('/');
-            break;
-          case 'pair':
-            navigate('/pair');
-            break;
-          case 'settings':
-            navigate('/settings', { state: parentViewOptions });
-            break;
-          case 'sessions':
-            navigate('/sessions');
-            break;
-          case 'schedules':
-            navigate('/schedules');
-            break;
-          case 'recipes':
-            navigate('/recipes');
-            break;
-          default:
-            navigate('/');
-        }
-      }}
-    />
-  );
 };
 
 const ConfigureProvidersRoute = () => {
@@ -305,39 +239,6 @@ const SharedSessionRouteWrapper = ({
   );
 };
 
-const ExtensionsRoute = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  // Get viewOptions from location.state or history.state (for deep link extensions)
-  const viewOptions =
-    (location.state as ExtensionsViewOptions) ||
-    (window.history.state as ExtensionsViewOptions) ||
-    {};
-
-  return (
-    <ExtensionsView
-      onClose={() => navigate(-1)}
-      setView={(view, options) => {
-        switch (view) {
-          case 'chat':
-            navigate('/');
-            break;
-          case 'pair':
-            navigate('/pair', { state: options });
-            break;
-          case 'settings':
-            navigate('/settings', { state: options });
-            break;
-          default:
-            navigate('/');
-        }
-      }}
-      viewOptions={viewOptions}
-    />
-  );
-};
-
 export function AppInner() {
   const [fatalError, setFatalError] = useState<string | null>(null);
   const [isLoadingSharedSession, setIsLoadingSharedSession] = useState(false);
@@ -345,13 +246,11 @@ export function AppInner() {
   const [didSelectProvider, setDidSelectProvider] = useState<boolean>(false);
 
   const navigate = useNavigate();
-  const setView = useNavigation();
 
   const [chat, setChat] = useState<ChatType>({
     sessionId: '',
     name: DEFAULT_CHAT_TITLE,
     messages: [],
-    recipe: null,
   });
 
   const MAX_ACTIVE_SESSIONS = 10;
@@ -408,8 +307,6 @@ export function AppInner() {
       window.removeEventListener(AppEvents.CLEAR_INITIAL_MESSAGE, handleClearInitialMessage);
     };
   }, []);
-
-  const { addExtension } = useConfig();
 
   useEffect(() => {
     console.log('Sending reactReady signal to Electron');
@@ -635,7 +532,6 @@ export function AppInner() {
         closeOnClick
         pauseOnHover
       />
-      <ExtensionInstallModal addExtension={addExtension} setView={setView} />
       <div className="relative w-screen h-screen overflow-hidden bg-background-secondary flex flex-col">
         <div className="titlebar-drag-region" />
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -668,18 +564,8 @@ export function AppInner() {
                 }
               />
               <Route path="settings" element={<SettingsRoute />} />
-              <Route
-                path="extensions"
-                element={
-                  <ChatProvider chat={chat} setChat={setChat} contextKey="extensions">
-                    <ExtensionsRoute />
-                  </ChatProvider>
-                }
-              />
               <Route path="apps" element={<AppsView />} />
               <Route path="sessions" element={<SessionsRoute />} />
-              <Route path="schedules" element={<SchedulesRoute />} />
-              <Route path="recipes" element={<RecipesRoute />} />
               <Route
                 path="shared-session"
                 element={
@@ -690,7 +576,6 @@ export function AppInner() {
                   />
                 }
               />
-              <Route path="permission" element={<PermissionRoute />} />
             </Route>
           </Routes>
         </div>

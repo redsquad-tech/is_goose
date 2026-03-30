@@ -7,7 +7,6 @@ import ExternalBackendSection from './app/ExternalBackendSection';
 import AppSettingsSection from './app/AppSettingsSection';
 import ConfigSettings from './config/ConfigSettings';
 import PromptsSettingsSection from './PromptsSettingsSection';
-import { ExtensionConfig } from '../../api';
 import { MainPanelLayout } from '../Layout/MainPanelLayout';
 import { Bot, Share2, Monitor, MessageSquare, FileText, Keyboard, HardDrive } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
@@ -21,7 +20,6 @@ import { CONFIGURATION_ENABLED } from '../../updates';
 import { trackSettingsTabViewed } from '../../utils/analytics';
 
 export type SettingsViewOptions = {
-  deepLinkConfig?: ExtensionConfig;
   showEnvVars?: boolean;
   section?: string;
 };

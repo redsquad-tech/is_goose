@@ -60,10 +60,10 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({
           ? `${info.provider} – ${info.model}`
           : info.provider || info.model || '[e.g. Google – gemini-1.5-pro]';
 
-      const extensions =
+      const runtimeCapabilities =
         info.enabled_extensions.length > 0
           ? info.enabled_extensions.join(', ')
-          : '[e.g. Computer Controller, Figma]';
+          : '[e.g. developer, memory]';
 
       const body = `**Describe the bug**
 
@@ -100,7 +100,7 @@ If applicable, add screenshots to help explain your problem.
 - **OS & Arch:** ${info.os} ${info.os_version} ${info.architecture}
 - **Interface:** UI
 - **Version:** ${info.app_version}
-- **Extensions enabled:** ${extensions}
+- **Runtime capabilities enabled:** ${runtimeCapabilities}
 - **Provider & Model:** ${providerModel}
 
 ---

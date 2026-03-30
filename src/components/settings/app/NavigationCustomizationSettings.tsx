@@ -10,10 +10,7 @@ import { cn } from '../../../utils';
 const ITEM_LABELS: Record<string, string> = {
   home: 'Home',
   chat: 'Chat',
-  recipes: 'Recipes',
   apps: 'Apps',
-  scheduler: 'Scheduler',
-  extensions: 'Extensions',
   settings: 'Settings',
 };
 

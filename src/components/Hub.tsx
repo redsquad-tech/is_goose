@@ -21,11 +21,6 @@ import ChatInput from './ChatInput';
 import { ChatState } from '../types/chatState';
 import 'react-toastify/dist/ReactToastify.css';
 import { View, ViewOptions } from '../utils/navigationUtils';
-import { useConfig } from './ConfigContext';
-import {
-  getExtensionConfigsWithOverrides,
-  clearExtensionOverrides,
-} from '../store/extensionOverrides';
 import { getInitialWorkingDir } from '../utils/workingDir';
 import { createSession } from '../sessions';
 import LoadingGoose from './LoadingGoose';
@@ -36,22 +31,16 @@ export default function Hub({
 }: {
   setView: (view: View, viewOptions?: ViewOptions) => void;
 }) {
-  const { extensionsList } = useConfig();
   const [workingDir, setWorkingDir] = useState(getInitialWorkingDir());
   const [isCreatingSession, setIsCreatingSession] = useState(false);
 
   const handleSubmit = async (input: UserInput) => {
     const { msg: userMessage, images } = input;
     if ((images.length > 0 || userMessage.trim()) && !isCreatingSession) {
-      const extensionConfigs = getExtensionConfigsWithOverrides(extensionsList);
-      clearExtensionOverrides();
       setIsCreatingSession(true);
 
       try {
-        const session = await createSession(workingDir, {
-          extensionConfigs,
-          allExtensions: extensionConfigs.length > 0 ? undefined : extensionsList,
-        });
+        const session = await createSession(workingDir);
 
         window.dispatchEvent(new CustomEvent(AppEvents.SESSION_CREATED));
         window.dispatchEvent(

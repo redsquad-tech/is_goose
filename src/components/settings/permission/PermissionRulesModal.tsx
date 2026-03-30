@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../ui/dialog';
-import { FixedExtensionEntry, useConfig } from '../../ConfigContext';
 import { ChevronRight } from 'lucide-react';
 import PermissionModal from './PermissionModal';
 import { Button } from '../../ui/button';
@@ -46,40 +45,15 @@ interface PermissionRulesModalProps {
 }
 
 export default function PermissionRulesModal({ isOpen, onClose }: PermissionRulesModalProps) {
-  const { getExtensions } = useConfig();
-  const [extensions, setExtensions] = useState<FixedExtensionEntry[]>([]);
+  const [rules, setRules] = useState([{ name: 'platform', description: 'platform' }]);
 
-  const fetchExtensions = useCallback(async () => {
-    const extensionsList = await getExtensions(true); // Force refresh
-    // Filter out disabled extensions
-    const enabledExtensions = extensionsList.filter((extension) => extension.enabled);
-    enabledExtensions.push({
-      name: 'platform',
-      type: 'builtin',
-      description: 'platform',
-      enabled: true,
-    });
-    // Sort extensions by name to maintain consistent order
-    const sortedExtensions = [...enabledExtensions].sort((a, b) => {
-      // First sort by builtin
-      if (a.type === 'builtin' && b.type !== 'builtin') return -1;
-      if (a.type !== 'builtin' && b.type === 'builtin') return 1;
-
-      // Then sort by bundled (handle null/undefined cases)
-      const aBundled = 'bundled' in a && a.bundled === true;
-      const bBundled = 'bundled' in b && b.bundled === true;
-      if (aBundled && !bBundled) return -1;
-      if (!aBundled && bBundled) return 1;
-
-      // Finally sort alphabetically within each group
-      return a.name.localeCompare(b.name);
-    });
-    setExtensions(sortedExtensions);
-  }, [getExtensions]);
+  const fetchRules = useCallback(async () => {
+    setRules([{ name: 'platform', description: 'platform' }]);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
-      fetchExtensions();
+      fetchRules();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
@@ -110,8 +84,7 @@ export default function PermissionRulesModal({ isOpen, onClose }: PermissionRule
                 Permission Rules
               </DialogTitle>
               <p className="text-text-secondary">
-                Configure tool permissions for extensions to control how they interact with your
-                system.
+                Configure tool permissions for Goose runtime capabilities.
               </p>
             </div>
           </div>
@@ -119,16 +92,15 @@ export default function PermissionRulesModal({ isOpen, onClose }: PermissionRule
 
         <div className="flex-1 overflow-y-auto px-8 pb-8 min-h-0">
           <div className="space-y-4">
-            {/* Extension Rules Section */}
             <RulesSection
-              title="Extension rules"
+              title="Tool rules"
               rules={
                 <div className="space-y-2">
-                  {extensions.map((extension) => (
+                  {rules.map((rule) => (
                     <RuleItem
-                      key={extension.name}
-                      title={extension.name}
-                      description={'description' in extension ? extension.description || '' : ''}
+                      key={rule.name}
+                      title={rule.name}
+                      description={rule.description}
                     />
                   ))}
                 </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageSquare, History, Plus, ChefHat } from 'lucide-react';
+import { MessageSquare, History, Plus } from 'lucide-react';
 import {
   DropdownMenuContent,
   DropdownMenuItem,
@@ -71,11 +71,7 @@ export const ChatSessionsDropdown: React.FC<ChatSessionsDropdownProps> = ({
               isActiveSession && 'bg-background-tertiary'
             )}
           >
-            {session.recipe ? (
-              <ChefHat className="w-4 h-4 flex-shrink-0 text-text-secondary" />
-            ) : (
-              <MessageSquare className="w-4 h-4 flex-shrink-0 text-text-secondary" />
-            )}
+            <MessageSquare className="w-4 h-4 flex-shrink-0 text-text-secondary" />
             <span className="truncate flex-1">
               {truncateMessage(getSessionDisplayName(session), 30)}
             </span>

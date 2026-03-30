@@ -11,7 +11,6 @@ import {
   Session,
   TokenState,
   updateFromSession,
-  updateSessionUserRecipeValues,
   listApps,
 } from '../api';
 
@@ -24,7 +23,6 @@ import {
   UserInput,
 } from '../types/message';
 import { errorMessage } from '../utils/conversionUtils';
-import { showExtensionLoadResults } from '../utils/extensionErrorUtils';
 import { maybeHandlePlatformEvent } from '../utils/platform_events';
 
 const resultsCache = new Map<string, { messages: Message[]; session: Session }>();
@@ -45,7 +43,6 @@ interface UseChatStreamReturn {
     elicitationId: string,
     userData: Record<string, unknown>
   ) => Promise<void>;
-  setRecipeUserParams: (values: Record<string, string>) => Promise<void>;
   stopStreaming: () => void;
   sessionLoadError?: string;
   tokenState: TokenState;
@@ -433,7 +430,6 @@ export function useChatStream({
           },
         },
       });
-      window.dispatchEvent(new CustomEvent(AppEvents.SESSION_EXTENSIONS_LOADED));
       onSessionLoaded?.();
       return;
     }
@@ -458,11 +454,6 @@ export function useChatStream({
 
         const resumeData = response.data;
         const loadedSession = resumeData?.session;
-        const extensionResults = resumeData?.extension_results;
-
-        showExtensionLoadResults(extensionResults);
-        window.dispatchEvent(new CustomEvent(AppEvents.SESSION_EXTENSIONS_LOADED));
-
         dispatch({
           type: 'SESSION_LOADED',
           payload: {
@@ -648,38 +639,6 @@ export function useChatStream({
     [sessionId, onFinish]
   );
 
-  const setRecipeUserParams = useCallback(
-    async (user_recipe_values: Record<string, string>) => {
-      const currentState = stateRef.current;
-
-      if (currentState.session) {
-        await updateSessionUserRecipeValues({
-          path: {
-            session_id: sessionId,
-          },
-          body: {
-            userRecipeValues: user_recipe_values,
-          },
-          throwOnError: true,
-        });
-        // TODO(Douwe): get this from the server instead of emulating it here
-        dispatch({
-          type: 'SET_SESSION',
-          payload: {
-            ...currentState.session,
-            user_recipe_values,
-          },
-        });
-      } else {
-        dispatch({
-          type: 'SET_SESSION_LOAD_ERROR',
-          payload: "can't call setRecipeParams without a session",
-        });
-      }
-    },
-    [sessionId]
-  );
-
   useEffect(() => {
     // This should happen on the server when the session is loaded or changed
     // use session.id to support changing of sessions rather than depending on the
@@ -829,7 +788,6 @@ export function useChatStream({
     handleSubmit,
     submitElicitationResponse,
     stopStreaming,
-    setRecipeUserParams,
     tokenState: state.tokenState,
     notifications: notificationsMap,
     onMessageUpdate,
