@@ -55,10 +55,6 @@ function getSettings(): Settings {
         ...defaultSettings.keyboardShortcuts,
         ...(stored.keyboardShortcuts ?? {}),
       },
-      sessionSharing: {
-        ...defaultSettings.sessionSharing,
-        ...(stored.sessionSharing ?? {}),
-      },
     };
   }
   return defaultSettings;
@@ -187,12 +183,7 @@ if (process.platform !== 'darwin') {
   if (!gotTheLock) {
     app.quit();
   } else {
-    app.on('second-instance', (_event, commandLine) => {
-      const protocolUrl = commandLine.find((arg) => arg.startsWith('goose://'));
-      if (protocolUrl) {
-        handleProtocolUrl(protocolUrl);
-      }
-
+    app.on('second-instance', () => {
       const existingWindows = BrowserWindow.getAllWindows();
       if (existingWindows.length > 0) {
         const mainWindow = existingWindows[0];
@@ -204,82 +195,7 @@ if (process.platform !== 'darwin') {
     });
   }
 
-  // Handle protocol URLs on Windows and Linux startup
-  const protocolUrl = process.argv.find((arg) => arg.startsWith('goose://'));
-  if (protocolUrl) {
-    app.whenReady().then(() => {
-      handleProtocolUrl(protocolUrl);
-    });
-  }
 }
-
-let firstOpenWindow: BrowserWindow;
-let pendingDeepLink: string | null = null;
-let openUrlHandledLaunch = false;
-
-async function handleProtocolUrl(url: string) {
-  if (!url) return;
-
-  pendingDeepLink = url;
-
-  const parsedUrl = new URL(url);
-
-  const existingWindows = BrowserWindow.getAllWindows();
-  if (existingWindows.length > 0) {
-    firstOpenWindow = existingWindows[0];
-    if (firstOpenWindow.isMinimized()) {
-      firstOpenWindow.restore();
-    }
-    firstOpenWindow.focus();
-  } else {
-    firstOpenWindow = await createChat(app);
-  }
-
-  if (firstOpenWindow) {
-    const webContents = firstOpenWindow.webContents;
-    if (webContents.isLoadingMainFrame()) {
-      webContents.once('did-finish-load', async () => {
-        await processProtocolUrl(parsedUrl, firstOpenWindow);
-      });
-    } else {
-      await processProtocolUrl(parsedUrl, firstOpenWindow);
-    }
-  }
-}
-
-async function processProtocolUrl(parsedUrl: URL, window: BrowserWindow) {
-  if (parsedUrl.hostname === 'sessions') {
-    window.webContents.send('open-shared-session', pendingDeepLink);
-  }
-}
-
-app.on('open-url', async (_event, url) => {
-  if (process.platform !== 'win32') {
-    const parsedUrl = new URL(url);
-
-    log.info('[Main] Received open-url event:', url);
-
-    await app.whenReady();
-
-    // For session URLs, store the deep link for processing after React is ready
-    pendingDeepLink = url;
-    log.info('[Main] Stored pending deep link for processing after React ready:', url);
-
-    const existingWindows = BrowserWindow.getAllWindows();
-    if (existingWindows.length > 0) {
-      firstOpenWindow = existingWindows[0];
-      if (firstOpenWindow.isMinimized()) firstOpenWindow.restore();
-      firstOpenWindow.focus();
-      if (parsedUrl.hostname === 'sessions') {
-        firstOpenWindow.webContents.send('open-shared-session', pendingDeepLink);
-        pendingDeepLink = null;
-      }
-    } else {
-      openUrlHandledLaunch = true;
-      firstOpenWindow = await createChat(app);
-    }
-  }
-});
 
 // Handle macOS drag-and-drop onto dock icon
 app.on('will-finish-launching', () => {
@@ -673,7 +589,6 @@ const createChat = async (app: App, options: CreateChatOptions = {}) => {
     chat: '/',
     pair: '/pair',
     sessions: '/sessions',
-    sharedSession: '/shared-session',
   };
 
   if (viewType) {
@@ -712,23 +627,6 @@ const createChat = async (app: App, options: CreateChatOptions = {}) => {
     if (input.key === 'i' && input.alt && input.meta) {
       mainWindow.webContents.openDevTools();
       event.preventDefault();
-    }
-  });
-
-  mainWindow.on('app-command', (e, cmd) => {
-    if (cmd === 'browser-backward') {
-      mainWindow.webContents.send('mouse-back-button-clicked');
-      e.preventDefault();
-    }
-  });
-
-  // Handle mouse back button (button 3)
-  // Use type assertion for non-standard Electron event
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  mainWindow.webContents.on('mouse-up' as any, function (_event: any, mouseButton: number) {
-    // MouseButton 3 is the back button.
-    if (mouseButton === 3) {
-      mainWindow.webContents.send('mouse-back-button-clicked');
     }
   });
 
@@ -781,23 +679,6 @@ ipcMain.on('react-ready', (event) => {
     pendingInitialMessages.delete(windowId);
   }
 
-  if (pendingDeepLink && window) {
-    log.info('Processing pending deep link:', pendingDeepLink);
-    try {
-      const parsedUrl = new URL(pendingDeepLink);
-      if (parsedUrl.hostname === 'sessions') {
-        log.info('Sending open-shared-session IPC to ready window');
-        window.webContents.send('open-shared-session', pendingDeepLink);
-      }
-      pendingDeepLink = null;
-    } catch (error) {
-      log.error('Error processing pending deep link:', error);
-      pendingDeepLink = null;
-    }
-  } else {
-    log.info('No pending deep link to process');
-  }
-
   log.info('React ready - window is prepared for deep links');
 });
 
@@ -819,19 +700,13 @@ ipcMain.handle('get-setting', (_event, key: SettingKey) => {
 
 // Valid setting keys for runtime validation
 const validSettingKeys: Set<string> = new Set([
-  'showMenuBarIcon',
-  'showDockIcon',
-  'enableWakelock',
   'spellcheckEnabled',
   'externalGoosed',
-  'globalShortcut',
   'keyboardShortcuts',
   'theme',
   'useSystemTheme',
   'responseStyle',
   'showPricing',
-  'sessionSharing',
-  'seenAnnouncementIds',
 ]);
 
 ipcMain.handle('set-setting', (_event, key: SettingKey, value: unknown) => {
@@ -955,14 +830,7 @@ async function appMain() {
     });
   });
 
-  // Migrate old settings format if needed (one-time migration)
   const settings = getSettings();
-  if (!settings.keyboardShortcuts && settings.globalShortcut !== undefined) {
-    updateSettings((s) => {
-      s.keyboardShortcuts = getKeyboardShortcuts(s);
-      delete s.globalShortcut;
-    });
-  }
 
   session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
     details.requestHeaders['Origin'] = 'http://localhost:5173';
@@ -971,11 +839,7 @@ async function appMain() {
 
   const { dirPath } = parseArgs();
 
-  if (!openUrlHandledLaunch) {
-    await createNewWindow(app, dirPath);
-  } else {
-    log.info('[Main] Skipping window creation in appMain - open-url already handled launch');
-  }
+  await createNewWindow(app, dirPath);
 
   const shortcuts = getKeyboardShortcuts(settings);
   const findSubmenu: MenuItemConstructorOptions[] = [

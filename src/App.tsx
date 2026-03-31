@@ -8,8 +8,6 @@ import {
   useLocation,
   useSearchParams,
 } from 'react-router-dom';
-import { openSharedSessionFromDeepLink } from './sessionLinks';
-import { type SharedSessionDetails } from './sharedSessions';
 import { ErrorUI } from './components/ErrorBoundary';
 import { ToastContainer } from 'react-toastify';
 import { createSession } from './sessions';
@@ -23,18 +21,17 @@ interface PairRouteState {
   initialMessage?: UserInput;
 }
 import SessionsView from './components/sessions/SessionsView';
-import SharedSessionView from './components/sessions/SharedSessionView';
 import { AppLayout } from './components/Layout/AppLayout';
 import { ChatProvider, DEFAULT_CHAT_TITLE } from './contexts/ChatContext';
 
 import 'react-toastify/dist/ReactToastify.css';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { View, ViewOptions } from './utils/navigationUtils';
+import { View } from './utils/navigationUtils';
 
 import { useNavigation } from './hooks/useNavigation';
+import { trackErrorWithContext } from './utils/analytics';
 import { errorMessage } from './utils/conversionUtils';
 import { getInitialWorkingDir } from './utils/workingDir';
-import { trackErrorWithContext } from './utils/analytics';
 import { AppEvents } from './constants/events';
 
 // Route Components
@@ -125,51 +122,8 @@ const SessionsRoute = () => {
   return <SessionsView />;
 };
 
-// Wrapper component for SharedSessionRoute to access parent state
-const SharedSessionRouteWrapper = ({
-  isLoadingSharedSession,
-  setIsLoadingSharedSession,
-  sharedSessionError,
-}: {
-  isLoadingSharedSession: boolean;
-  setIsLoadingSharedSession: (loading: boolean) => void;
-  sharedSessionError: string | null;
-}) => {
-  const location = useLocation();
-  const setView = useNavigation();
-
-  const historyState = window.history.state;
-  const sessionDetails = (location.state?.sessionDetails ||
-    historyState?.sessionDetails) as SharedSessionDetails | null;
-  const error = location.state?.error || historyState?.error || sharedSessionError;
-  const shareToken = location.state?.shareToken || historyState?.shareToken;
-  const baseUrl = location.state?.baseUrl || historyState?.baseUrl;
-
-  return (
-    <SharedSessionView
-      session={sessionDetails}
-      isLoading={isLoadingSharedSession}
-      error={error}
-      onRetry={async () => {
-        if (shareToken && baseUrl) {
-          setIsLoadingSharedSession(true);
-          try {
-            await openSharedSessionFromDeepLink(`goose://sessions/${shareToken}`, setView, baseUrl);
-          } catch (error) {
-            console.error('Failed to retry loading shared session:', error);
-          } finally {
-            setIsLoadingSharedSession(false);
-          }
-        }
-      }}
-    />
-  );
-};
-
 export function AppInner() {
   const [fatalError, setFatalError] = useState<string | null>(null);
-  const [isLoadingSharedSession, setIsLoadingSharedSession] = useState(false);
-  const [sharedSessionError, setSharedSessionError] = useState<string | null>(null);
 
   const navigate = useNavigate();
 
@@ -243,41 +197,6 @@ export function AppInner() {
       setFatalError(`React ready notification failed: ${errorMessage(error, 'Unknown error')}`);
     }
   }, []);
-
-  useEffect(() => {
-    const handleOpenSharedSession = async (_event: IpcRendererEvent, ...args: unknown[]) => {
-      const link = args[0] as string;
-      window.electron.logInfo(`Opening shared session from deep link ${link}`);
-      setIsLoadingSharedSession(true);
-      setSharedSessionError(null);
-      try {
-        await openSharedSessionFromDeepLink(link, (_view: View, options?: ViewOptions) => {
-          navigate('/shared-session', { state: options });
-        });
-      } catch (error) {
-        console.error('Unexpected error opening shared session:', error);
-        trackErrorWithContext(error, {
-          component: 'AppInner',
-          action: 'open_shared_session',
-          recoverable: true,
-        });
-        // Navigate to shared session view with error
-        const shareToken = link.replace('goose://sessions/', '');
-        const options = {
-          sessionDetails: null,
-          error: errorMessage(error, 'Unknown error'),
-          shareToken,
-        };
-        navigate('/shared-session', { state: options });
-      } finally {
-        setIsLoadingSharedSession(false);
-      }
-    };
-    window.electron.on('open-shared-session', handleOpenSharedSession);
-    return () => {
-      window.electron.off('open-shared-session', handleOpenSharedSession);
-    };
-  }, [navigate]);
 
   // Prevent default drag and drop behavior globally to avoid opening files in new windows
   // but allow our React components to handle drops in designated areas
@@ -452,16 +371,6 @@ export function AppInner() {
                 }
               />
               <Route path="sessions" element={<SessionsRoute />} />
-              <Route
-                path="shared-session"
-                element={
-                  <SharedSessionRouteWrapper
-                    isLoadingSharedSession={isLoadingSharedSession}
-                    setIsLoadingSharedSession={setIsLoadingSharedSession}
-                    sharedSessionError={sharedSessionError}
-                  />
-                }
-              />
             </Route>
           </Routes>
         </div>

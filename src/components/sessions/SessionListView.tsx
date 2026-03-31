@@ -30,6 +30,7 @@ import {
 import { getSearchShortcutText } from '../../utils/keyboardShortcuts';
 import { shouldShowNewChatTitle } from '../../sessions';
 import { DEFAULT_CHAT_TITLE } from '../../contexts/ChatContext';
+import { useNavigation } from '../../hooks/useNavigation';
 
 interface EditSessionModalProps {
   session: Session | null;
@@ -170,13 +171,8 @@ interface SearchContainerElement extends HTMLDivElement {
   _searchHighlighter: SearchHighlighter | null;
 }
 
-interface SessionListViewProps {
-  onSelectSession: (sessionId: string) => void;
-  selectedSessionId?: string | null;
-}
-
-const SessionListView: React.FC<SessionListViewProps> = React.memo(
-  ({ onSelectSession, selectedSessionId }) => {
+const SessionListView: React.FC = React.memo(() => {
+    const setView = useNavigation();
     const [sessions, setSessions] = useState<Session[]>([]);
     const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
     const [dateGroups, setDateGroups] = useState<DateGroup[]>([]);
@@ -206,17 +202,6 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
     const debouncedSearchTerm = useDebounce(searchTerm, 300); // 300ms debounce
 
     const containerRef = useRef<HTMLDivElement>(null);
-
-    // Track session to element ref
-    const sessionRefs = useRef<Record<string, HTMLElement>>({});
-    const setSessionRefs = (itemId: string, element: HTMLDivElement | null) => {
-      if (element) {
-        sessionRefs.current[itemId] = element;
-      } else {
-        delete sessionRefs.current[itemId];
-      }
-    };
-
 
     const visibleDateGroups = useMemo(() => {
       return dateGroups.slice(0, visibleGroupsCount);
@@ -303,18 +288,6 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
         setDateGroups(memoizedDateGroups);
       });
     }, [memoizedDateGroups]);
-
-    // Scroll to the selected session when returning from session history view
-    useEffect(() => {
-      if (selectedSessionId) {
-        const element = sessionRefs.current[selectedSessionId];
-        if (element) {
-          element.scrollIntoView({
-            block: 'center',
-          });
-        }
-      }
-    }, [selectedSessionId, sessions]);
 
     // Debounced search effect - performs content search via API
     useEffect(() => {
@@ -465,8 +438,11 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
       );
 
       const handleCardClick = useCallback(() => {
-        onSelectSession(session.id);
-      }, [session.id]);
+        setView('pair', {
+          disableAnimation: true,
+          resumeSessionId: session.id,
+        });
+      }, [session.id, setView]);
 
       const displayName = shouldShowNewChatTitle(session) ? DEFAULT_CHAT_TITLE : session.name;
 
@@ -474,7 +450,6 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
         <Card
           onClick={handleCardClick}
           className="h-full py-3 px-4 hover:shadow-default cursor-pointer transition-all duration-150 flex flex-col justify-between relative group"
-          ref={(el) => setSessionRefs(session.id, el)}
         >
           <div>
             <h3 className="text-base break-words line-clamp-2 w-full mb-1">{displayName}</h3>
@@ -717,8 +692,7 @@ const SessionListView: React.FC<SessionListViewProps> = React.memo(
         />
       </>
     );
-  }
-);
+  });
 
 SessionListView.displayName = 'SessionListView';
 

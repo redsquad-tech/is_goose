@@ -7,8 +7,6 @@ const localStorageKeyMap: Partial<Record<SettingKey, string>> = {
   useSystemTheme: 'use_system_theme',
   responseStyle: 'response_style',
   showPricing: 'show_pricing',
-  sessionSharing: 'session_sharing_config',
-  seenAnnouncementIds: 'seenAnnouncementIds',
 };
 
 function parseLocalStorageValue<K extends SettingKey>(
@@ -25,9 +23,6 @@ function parseLocalStorageValue<K extends SettingKey>(
         return rawValue as Settings[K];
       case 'showPricing':
         return (rawValue === 'true') as unknown as Settings[K];
-      case 'sessionSharing':
-      case 'seenAnnouncementIds':
-        return JSON.parse(rawValue) as Settings[K];
       default:
         return null;
     }
@@ -71,8 +66,6 @@ type ElectronAPI = {
   setSetting: <K extends SettingKey>(key: K, value: Settings[K]) => Promise<void>;
   getSecretKey: () => Promise<string>;
   getGoosedHostPort: () => Promise<string | null>;
-  onMouseBackButtonClicked: (callback: () => void) => void;
-  offMouseBackButtonClicked: (callback: () => void) => void;
   on: (
     channel: string,
     callback: (event: Electron.IpcRendererEvent, ...args: unknown[]) => void
@@ -128,14 +121,6 @@ const electronAPI: ElectronAPI = {
   },
   getSecretKey: () => ipcRenderer.invoke('get-secret-key'),
   getGoosedHostPort: () => ipcRenderer.invoke('get-goosed-host-port'),
-  onMouseBackButtonClicked: (callback: () => void) => {
-    const wrappedCallback = (_event: Electron.IpcRendererEvent) => callback();
-    ipcRenderer.on('mouse-back-button-clicked', wrappedCallback);
-    return wrappedCallback;
-  },
-  offMouseBackButtonClicked: (callback: () => void) => {
-    ipcRenderer.removeListener('mouse-back-button-clicked', callback);
-  },
   on: (
     channel: string,
     callback: (event: Electron.IpcRendererEvent, ...args: unknown[]) => void

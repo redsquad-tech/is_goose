@@ -5,16 +5,11 @@ export type View =
   | 'chat'
   | 'pair'
   | 'sessions'
-  | 'sharedSession'
   | 'loading';
 
 export type ViewOptions = {
-  sessionDetails?: unknown;
-  error?: string;
-  baseUrl?: string;
   disableAnimation?: boolean;
   initialMessage?: UserInput;
-  shareToken?: string;
   resumeSessionId?: string;
 };
 
@@ -39,9 +34,6 @@ export const createNavigationHandler = (navigate: NavigateFunction) => {
       }
       case 'sessions':
         navigate('/sessions', { state: options });
-        break;
-      case 'sharedSession':
-        navigate('/shared-session', { state: options });
         break;
       default:
         navigate('/', { state: options });
