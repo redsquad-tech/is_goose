@@ -66,6 +66,20 @@ module.exports = {
       },
     },
     {
+      name: '@electron-forge/maker-wix',
+      platforms: ['win32'],
+      config: {
+        language: 1033,
+        manufacturer: 'RedSquad Tech',
+        icon: resolve(__dirname, 'src/images/icon.ico'),
+        ui: false,
+        defaultInstallMode: 'perMachine',
+        shortcutFolderName: 'Goose',
+        shortcutName: 'Goose',
+        programFilesFolderName: 'Goose',
+      },
+    },
+    {
       name: '@electron-forge/maker-deb',
       config: {
         name: 'Goose',

@@ -33,6 +33,13 @@ jobs:
         shell: bash
         run: npm ci
 
+      - name: Install WiX Toolset
+        shell: pwsh
+        run: |
+          choco install wixtoolset --no-progress -y
+          candle.exe -?
+          light.exe -?
+
       - name: Prepare Windows desktop assets
         shell: bash
         run: |
@@ -49,9 +56,11 @@ jobs:
         shell: bash
         run: |
           test -f out/Goose-win32-x64/Goose.exe
+          test -f out/make/wix/x64/Goose.msi
           if [ -d out/Goose-win32-x64/resources/bin ]; then
             ls -la out/Goose-win32-x64/resources/bin
           fi
+          ls -la out/make/wix/x64
 
       - name: Create Windows archive
         shell: pwsh
@@ -61,8 +70,18 @@ jobs:
           }
           Compress-Archive -Path out/Goose-win32-x64/* -DestinationPath Goose-win32-x64.zip
 
+      - name: Copy MSI to root
+        shell: bash
+        run: cp -f out/make/wix/x64/Goose.msi Goose.msi
+
       - name: Upload Windows build artifact
         uses: actions/upload-artifact@v4
         with:
           name: Goose-win32-x64
           path: Goose-win32-x64.zip
+
+      - name: Upload MSI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Goose-msi-x64
+          path: Goose.msi
