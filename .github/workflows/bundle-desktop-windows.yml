@@ -1,0 +1,68 @@
+name: Bundle Desktop (Windows)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/bundle-desktop-windows.yml'
+      - 'forge.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite*.mts'
+      - 'src/**'
+      - 'scripts/**'
+
+jobs:
+  build-desktop-windows:
+    name: Build Desktop (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout desktop repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.10.0
+          cache: npm
+
+      - name: Install desktop dependencies
+        shell: bash
+        run: npm ci
+
+      - name: Prepare Windows desktop assets
+        shell: bash
+        run: |
+          node scripts/prepare-platform-binaries.js win32
+          if [ -d src/bin ]; then
+            ls -la src/bin
+          fi
+
+      - name: Build Windows desktop bundle
+        shell: bash
+        run: npm run bundle:windows
+
+      - name: Verify frontend bundle output
+        shell: bash
+        run: |
+          test -f out/Goose-win32-x64/Goose.exe
+          if [ -d out/Goose-win32-x64/resources/bin ]; then
+            ls -la out/Goose-win32-x64/resources/bin
+          fi
+
+      - name: Create Windows archive
+        shell: pwsh
+        run: |
+          if (Test-Path Goose-win32-x64.zip) {
+            Remove-Item Goose-win32-x64.zip -Force
+          }
+          Compress-Archive -Path out/Goose-win32-x64/* -DestinationPath Goose-win32-x64.zip
+
+      - name: Upload Windows build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Goose-win32-x64
+          path: Goose-win32-x64.zip

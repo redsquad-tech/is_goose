@@ -47,6 +47,21 @@ GOOSE_SERVER__SECRET_KEY=qwerty \
 npm run start-gui-debug
 ```
 
+## Windows bundle
+
+Windows bundle собирает только desktop-клиент. Внутрь пакета не вкладывается `goosed.exe`.
+
+Для CI используется workflow [`bundle-desktop-windows.yml`](.github/workflows/bundle-desktop-windows.yml), локально команда такая:
+
+```bash
+npm run bundle:windows
+```
+
+Собранный клиент нужно запускать только против внешнего backend:
+
+- либо через env `GOOSE_EXTERNAL_BACKEND`, `GOOSE_PORT`, `GOOSE_SERVER__SECRET_KEY`
+- либо через настройки `Use external server`
+
 ## Если сервер не на localhost
 
 Env-переменная `GOOSE_PORT` работает только для `127.0.0.1`.

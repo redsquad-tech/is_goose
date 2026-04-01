@@ -18,6 +18,7 @@
     "start:test-error": "GOOSE_TEST_ERROR=true electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
+    "bundle:windows": "node scripts/prepare-platform-binaries.js win32 && npm run make -- --platform=win32 --arch=x64",
     "bundle:default": "node scripts/prepare-platform-binaries.js && npm run make && BUNDLE_NAME=\"${GOOSE_BUNDLE_NAME:-Goose}\" && APP_DIR=\"out/${BUNDLE_NAME}-darwin-arm64\" && APP_BUNDLE=\"${APP_DIR}/${BUNDLE_NAME}.app\" && (cd \"$APP_DIR\" && ditto -c -k --sequesterRsrc --keepParent \"${BUNDLE_NAME}.app\" \"${BUNDLE_NAME}.zip\") || echo \"${APP_BUNDLE} not found; either the binary is not built or you are not on macOS\"",
     "bundle:alpha": "ALPHA=true node scripts/prepare-platform-binaries.js && ALPHA=true npm run make && BUNDLE_NAME=\"${GOOSE_BUNDLE_NAME:-Goose}\" && APP_DIR=\"out/${BUNDLE_NAME}-darwin-arm64\" && APP_BUNDLE=\"${APP_DIR}/${BUNDLE_NAME}.app\" && (cd \"$APP_DIR\" && ditto -c -k --sequesterRsrc --keepParent \"${BUNDLE_NAME}.app\" \"${BUNDLE_NAME}_alpha.zip\") || echo \"${APP_BUNDLE} not found; either the binary is not built or you are not on macOS\"",
     "bundle:intel": "node scripts/prepare-platform-binaries.js && npm run make -- --arch=x64 && BUNDLE_NAME=\"${GOOSE_BUNDLE_NAME:-Goose}\" && APP_DIR=\"out/${BUNDLE_NAME}-darwin-x64\" && APP_BUNDLE=\"${APP_DIR}/${BUNDLE_NAME}.app\" && (cd \"$APP_DIR\" && ditto -c -k --sequesterRsrc --keepParent \"${BUNDLE_NAME}.app\" \"${BUNDLE_NAME}_intel_mac.zip\")",
