@@ -63,6 +63,8 @@ Workflow Windows-сборки:
 
 По умолчанию используется тег `v0.1`. При ручном запуске workflow можно передать другой `goosed_version`, а для автосборки на `main` можно задать repository variable `GOOSED_VERSION`.
 
+Если `redsquad-tech/is_goosed` приватный, в репозитории `is_goose` нужен GitHub Actions secret `IS_GOOSED_RELEASE_TOKEN` с доступом на чтение релизов/contents backend-репозитория.
+
 Локальный dev-запуск по-прежнему можно делать против внешнего backend:
 
 - либо через env `GOOSE_EXTERNAL_BACKEND`, `GOOSE_PORT`, `GOOSE_SERVER__SECRET_KEY`
