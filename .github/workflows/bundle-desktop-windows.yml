@@ -23,6 +23,8 @@ jobs:
   build-desktop-windows:
     name: Build Desktop (Windows)
     runs-on: windows-latest
+    permissions:
+      contents: read
     env:
       GOOSED_REPOSITORY: redsquad-tech/is_goosed
       GOOSED_VERSION: ${{ github.event.inputs.goosed_version || vars.GOOSED_VERSION || 'v0.1' }}
@@ -44,16 +46,21 @@ jobs:
 
       - name: Download bundled goosed release
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          $releaseUrl = "https://github.com/${env:GOOSED_REPOSITORY}/releases/download/${env:GOOSED_VERSION}/${env:GOOSED_WINDOWS_ASSET}"
-          Write-Host "Downloading $releaseUrl"
+          Write-Host "Downloading ${env:GOOSED_WINDOWS_ASSET} from ${env:GOOSED_REPOSITORY} release ${env:GOOSED_VERSION}"
 
           Remove-Item vendor/goosed-release -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item src/bin/goosed.exe -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force -Path vendor/goosed-release | Out-Null
           New-Item -ItemType Directory -Force -Path src/bin | Out-Null
 
-          Invoke-WebRequest -Uri $releaseUrl -OutFile "vendor/goosed-release/${env:GOOSED_WINDOWS_ASSET}"
+          gh release download ${env:GOOSED_VERSION} `
+            --repo ${env:GOOSED_REPOSITORY} `
+            --pattern ${env:GOOSED_WINDOWS_ASSET} `
+            --dir vendor/goosed-release
+
           Expand-Archive -Path "vendor/goosed-release/${env:GOOSED_WINDOWS_ASSET}" -DestinationPath "vendor/goosed-release/unpacked" -Force
 
           $goosed = Get-ChildItem "vendor/goosed-release/unpacked" -Recurse -Filter "goosed.exe" | Select-Object -First 1
