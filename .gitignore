@@ -9,5 +9,6 @@ src/bin/goose-npm/
 /test-results/
 /src/bin/temporal-service
 src/bin/temporal.db
+vendor/goosed-release/
 # Signing credentials
 .env.signing

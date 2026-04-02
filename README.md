@@ -1,8 +1,8 @@
 # is_goose
 
-Минимальный standalone-проект desktop-приложения Goose для подключения к уже запущенному внешнему `goosed`.
+Standalone desktop-проект Goose на Electron/React.
 
-В проекте нет Rust-бэкенда и нет CLI. Здесь только Electron/React desktop app.
+Основной runtime-бэкенд `goosed` живёт в отдельном репозитории `redsquad-tech/is_goosed`. Для локальной разработки можно подключаться к уже запущенному внешнему серверу, а Windows bundle / MSI собираются с вложенным `goosed.exe`, скачанным из GitHub Releases backend-репозитория.
 
 ## Что нужно заранее
 
@@ -47,9 +47,7 @@ GOOSE_SERVER__SECRET_KEY=qwerty \
 npm run start-gui-debug
 ```
 
-## Windows bundle
-
-Windows bundle собирает только desktop-клиент. Внутрь пакета не вкладывается `goosed.exe`.
+## Windows bundle / MSI
 
 Для CI используется workflow [`bundle-desktop-windows.yml`](.github/workflows/bundle-desktop-windows.yml), локально команда такая:
 
@@ -57,7 +55,15 @@ Windows bundle собирает только desktop-клиент. Внутрь 
 npm run bundle:windows
 ```
 
-Собранный клиент нужно запускать только против внешнего backend:
+Workflow Windows-сборки:
+
+- скачивает `goosed-windows-x86_64.zip` из release репозитория `redsquad-tech/is_goosed`
+- распаковывает `goosed.exe` в `src/bin`
+- собирает portable zip и `msi`
+
+По умолчанию используется тег `v0.1`. При ручном запуске workflow можно передать другой `goosed_version`, а для автосборки на `main` можно задать repository variable `GOOSED_VERSION`.
+
+Локальный dev-запуск по-прежнему можно делать против внешнего backend:
 
 - либо через env `GOOSE_EXTERNAL_BACKEND`, `GOOSE_PORT`, `GOOSE_SERVER__SECRET_KEY`
 - либо через настройки `Use external server`
