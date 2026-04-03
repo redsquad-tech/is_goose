@@ -67,21 +67,12 @@ Workflow Windows-сборки:
 
 Локальный dev-запуск по-прежнему можно делать против внешнего backend:
 
-- либо через env `GOOSE_EXTERNAL_BACKEND`, `GOOSE_PORT`, `GOOSE_SERVER__SECRET_KEY`
-- либо через настройки `Use external server`
+- через env `GOOSE_EXTERNAL_BACKEND`, `GOOSE_PORT`, `GOOSE_SERVER__SECRET_KEY`
+
 
 ## Если сервер не на localhost
 
-Env-переменная `GOOSE_PORT` работает только для `127.0.0.1`.
-
-Если сервер на другом хосте:
-
-1. запустите приложение
-2. откройте `Settings`
-3. перейдите на вкладку `Session`
-4. в блоке `Goose Server` включите `Use external server`
-5. укажите полный URL и `Secret Key`
-6. перезапустите приложение
+Env-переменная `GOOSE_PORT` работает только для `127.0.0.1`, поэтому текущий dev-сценарий с внешним backend рассчитан на локальный сервер или SSH-port-forwarding до localhost.
 
 ## Важная особенность
 

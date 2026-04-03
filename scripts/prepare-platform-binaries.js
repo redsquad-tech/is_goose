@@ -5,7 +5,7 @@ const srcBinDir = path.join(__dirname, '..', 'src', 'bin');
 const platformWinDir = path.join(__dirname, '..', 'src', 'platform', 'windows', 'bin');
 
 const windowsFiles = ['*.exe', '*.dll', '*.cmd', 'goose-npm/**/*'];
-const commonFiles = ['*.db', '*.log', '.gitkeep'];
+const commonFiles = ['*.db', '*.log', '*.env', '.gitkeep'];
 
 function matchesPattern(filename, patterns) {
   return patterns.some((pattern) => {

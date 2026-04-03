@@ -75,6 +75,30 @@ jobs:
           Copy-Item $goosed.FullName "src/bin/goosed.exe" -Force
           Get-ChildItem src/bin
 
+      - name: Create goosed runtime env
+        shell: pwsh
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOSE_PROVIDER: ${{ vars.GOOSE_PROVIDER }}
+          GOOSE_MODEL: ${{ vars.GOOSE_MODEL }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:OPENAI_API_KEY)) {
+            throw "GitHub Actions secret OPENAI_API_KEY is required for the Windows bundle."
+          }
+          if ([string]::IsNullOrWhiteSpace($env:GOOSE_PROVIDER)) {
+            throw "GitHub Actions variable GOOSE_PROVIDER is required for the Windows bundle."
+          }
+          if ([string]::IsNullOrWhiteSpace($env:GOOSE_MODEL)) {
+            throw "GitHub Actions variable GOOSE_MODEL is required for the Windows bundle."
+          }
+
+          New-Item -ItemType Directory -Force -Path src/bin | Out-Null
+          @(
+            "GOOSE_PROVIDER=$($env:GOOSE_PROVIDER)"
+            "GOOSE_MODEL=$($env:GOOSE_MODEL)"
+            "OPENAI_API_KEY=$($env:OPENAI_API_KEY)"
+          ) | Set-Content -Path "src/bin/goosed.env"
+
       - name: Install WiX Toolset
         shell: pwsh
         run: |
@@ -100,6 +124,7 @@ jobs:
           test -f out/Goose-win32-x64/Goose.exe
           test -f out/make/wix/x64/Goose.msi
           test -f out/Goose-win32-x64/resources/bin/goosed.exe
+          test -f out/Goose-win32-x64/resources/bin/goosed.env
           if [ -d out/Goose-win32-x64/resources/bin ]; then
             ls -la out/Goose-win32-x64/resources/bin
           fi
