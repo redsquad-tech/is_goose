@@ -201,12 +201,12 @@ export function useNavigationSessions(options: UseNavigationSessionsOptions = {}
 
 export function getSessionDisplayName(session: Session): string {
   if (shouldShowNewChatTitle(session)) {
-    return 'New Chat';
+    return 'Новый чат';
   }
   return session.name;
 }
 
 export function truncateMessage(msg?: string, maxLen = 20): string {
-  if (!msg) return 'New Chat';
+  if (!msg) return 'Новый чат';
   return msg.length > maxLen ? msg.substring(0, maxLen) + '...' : msg;
 }

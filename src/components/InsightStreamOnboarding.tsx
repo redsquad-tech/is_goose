@@ -6,9 +6,9 @@ import { useConfig } from './ConfigContext';
 import { setConfigProvider } from '../api';
 
 const INSIGHTSTREAM_PROVIDER = 'openai';
-const INSIGHTSTREAM_MODEL = 'gpt-5-mini';
-const INSIGHTSTREAM_HOST = 'https://api.openai.com';
-const INSIGHTSTREAM_BASE_PATH = 'v1/chat/completions';
+const INSIGHTSTREAM_MODEL = 'compressa1';
+const INSIGHTSTREAM_HOST = 'http://console.insightstream.ru:8080';
+const INSIGHTSTREAM_BASE_PATH = 'v1/responses';
 
 interface InsightStreamOnboardingProps {
   onConfigured: () => void;
@@ -65,11 +65,8 @@ export default function InsightStreamOnboarding({
     <div className="h-screen w-full bg-background-secondary text-text-primary flex items-center justify-center px-6">
       <div className="w-full max-w-md rounded-2xl border border-border-primary bg-background-primary p-8 shadow-sm">
         <div className="space-y-3">
-          <p className="text-sm uppercase tracking-[0.2em] text-text-secondary">InsightStream</p>
           <h1 className="text-3xl font-light">Подключение</h1>
-          <p className="text-sm text-text-secondary leading-6">
-            Введите ваш ключ доступа. Остальные настройки приложение задаст автоматически.
-          </p>
+          <p className="text-sm text-text-secondary leading-6">Введите ваш ключ доступа.</p>
         </div>
 
         <form className="mt-8 space-y-4" onSubmit={handleSubmit}>

@@ -140,22 +140,22 @@ function ToastErrorContent({
       <div className="flex-none flex items-center gap-2">
         {showRecovery && (
           <Button onClick={() => startNewSession(recoverHints, setView, getInitialWorkingDir())}>
-            Ask goose
+            Спросить Insightstream
           </Button>
         )}
         {hasBoth && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button onClick={handleCopyError} shape="round" aria-label="Copy error">
+              <Button onClick={handleCopyError} shape="round" aria-label="Скопировать ошибку">
                 <Copy className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="z-[10000]">
-              Copy error
+              Скопировать ошибку
             </TooltipContent>
           </Tooltip>
         )}
-        {traceback && !hasBoth && <Button onClick={handleCopyError}>Copy error</Button>}
+        {traceback && !hasBoth && <Button onClick={handleCopyError}>Скопировать ошибку</Button>}
       </div>
     </div>
   );

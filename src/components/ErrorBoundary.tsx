@@ -49,15 +49,16 @@ export function ErrorUI({ error }: { error: string }) {
           <AlertTriangle className="w-8 h-8 text-destructive" />
         </div>
 
-        <h1 className="text-2xl font-semibold text-foreground dark:text-white">Honk!</h1>
+        <h1 className="text-2xl font-semibold text-foreground dark:text-white">Ошибка</h1>
 
         {window?.appConfig?.get('GOOSE_VERSION') !== undefined ? (
           <p className="text-base text-text-secondary dark:text-muted-foreground mb-2">
-            An error occurred in Goose v{window?.appConfig?.get('GOOSE_VERSION') as string}.
+            Произошла ошибка в Insightstream v
+            {window?.appConfig?.get('GOOSE_VERSION') as string}.
           </p>
         ) : (
           <p className="text-base text-text-secondary dark:text-muted-foreground mb-2">
-            An error occurred.
+            Произошла ошибка.
           </p>
         )}
 
@@ -65,7 +66,7 @@ export function ErrorUI({ error }: { error: string }) {
           {error}
         </pre>
 
-        <Button onClick={handleReload}>Reload</Button>
+        <Button onClick={handleReload}>Перезагрузить</Button>
       </div>
     </div>
   );

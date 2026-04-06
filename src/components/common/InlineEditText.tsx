@@ -175,7 +175,7 @@ export const InlineEditText: React.FC<InlineEditTextProps> = ({
       `}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
-      title={disabled ? '' : singleClickEdit ? 'Click to edit' : 'Double-click to edit'}
+      title={disabled ? '' : singleClickEdit ? 'Нажмите, чтобы изменить' : 'Дважды нажмите, чтобы изменить'}
     >
       {value || <span className="text-text-subtle italic">{placeholder}</span>}
     </div>

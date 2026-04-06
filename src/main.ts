@@ -201,7 +201,7 @@ if (process.platform !== 'darwin') {
 app.on('will-finish-launching', () => {
   if (process.platform === 'darwin') {
     app.setAboutPanelOptions({
-      applicationName: 'Goose',
+      applicationName: 'Insightstream',
       applicationVersion: app.getVersion(),
     });
   }
@@ -253,7 +253,7 @@ async function handleFileOpen(filePath: string) {
 
     // Show user-friendly error notification
     new Notification({
-      title: 'Goose',
+      title: 'Insightstream',
       body: `Could not open directory: ${path.basename(filePath)}`,
     }).show();
   }
@@ -460,7 +460,7 @@ const createChat = async (app: App, options: CreateChatOptions = {}) => {
         title: 'External Backend Unreachable',
         message: `Could not connect to external backend at ${settings.externalGoosed?.url}`,
         detail: 'The external goosed server may not be running.',
-        buttons: ['Disable External Backend & Retry', 'Quit'],
+        buttons: ['Отключить внешний backend и повторить', 'Выход'],
         defaultId: 0,
         cancelId: 1,
       });
@@ -477,7 +477,7 @@ const createChat = async (app: App, options: CreateChatOptions = {}) => {
     } else {
       dialog.showMessageBoxSync({
         type: 'error',
-        title: 'Goose Failed to Start',
+        title: 'Insightstream Failed to Start',
         message: 'The backend server failed to start.',
         detail: errorLog.join('\n'),
         buttons: ['OK'],
@@ -507,7 +507,7 @@ const createChat = async (app: App, options: CreateChatOptions = {}) => {
       if (params.misspelledWord) {
         menu.append(
           new MenuItem({
-            label: 'Add to dictionary',
+            label: 'Добавить в словарь',
             click: () =>
               mainWindow.webContents.session.addWordToSpellCheckerDictionary(params.misspelledWord),
           })
@@ -521,14 +521,14 @@ const createChat = async (app: App, options: CreateChatOptions = {}) => {
     if (params.selectionText) {
       menu.append(
         new MenuItem({
-          label: 'Cut',
+          label: 'Вырезать',
           accelerator: 'CmdOrCtrl+X',
           role: 'cut',
         })
       );
       menu.append(
         new MenuItem({
-          label: 'Copy',
+          label: 'Копировать',
           accelerator: 'CmdOrCtrl+C',
           role: 'copy',
         })
@@ -539,7 +539,7 @@ const createChat = async (app: App, options: CreateChatOptions = {}) => {
     if (params.isEditable) {
       menu.append(
         new MenuItem({
-          label: 'Paste',
+          label: 'Вставить',
           accelerator: 'CmdOrCtrl+V',
           role: 'paste',
         })
@@ -845,7 +845,7 @@ async function appMain() {
   const shortcuts = getKeyboardShortcuts(settings);
   const findSubmenu: MenuItemConstructorOptions[] = [
     {
-      label: 'Find…',
+      label: 'Найти…',
       accelerator: shortcuts.find || undefined,
       click() {
         const focusedWindow = BrowserWindow.getFocusedWindow();
@@ -853,7 +853,7 @@ async function appMain() {
       },
     },
     {
-      label: 'Find Next',
+      label: 'Найти следующее',
       accelerator: shortcuts.findNext || undefined,
       click() {
         const focusedWindow = BrowserWindow.getFocusedWindow();
@@ -861,7 +861,7 @@ async function appMain() {
       },
     },
     {
-      label: 'Find Previous',
+      label: 'Найти предыдущее',
       accelerator: shortcuts.findPrevious || undefined,
       click() {
         const focusedWindow = BrowserWindow.getFocusedWindow();
@@ -869,7 +869,7 @@ async function appMain() {
       },
     },
     {
-      label: 'Use Selection for Find',
+      label: 'Искать по выделенному',
       accelerator: process.platform === 'darwin' ? 'Command+E' : undefined,
       click() {
         const focusedWindow = BrowserWindow.getFocusedWindow();
@@ -886,10 +886,10 @@ async function appMain() {
   }
 
   menuTemplate.push({
-    label: 'File',
+    label: 'Файл',
     submenu: [
       {
-        label: 'New Chat',
+        label: 'Новый чат',
         accelerator: shortcuts.newChat || undefined,
         click() {
           const focusedWindow = BrowserWindow.getFocusedWindow();
@@ -897,43 +897,47 @@ async function appMain() {
         },
       },
       { type: 'separator' },
-      process.platform === 'darwin' ? { role: 'close' } : { role: 'quit' },
+      process.platform === 'darwin'
+        ? { label: 'Закрыть окно', role: 'close' }
+        : { label: 'Выход', role: 'quit' },
     ],
   });
 
   menuTemplate.push({
-    label: 'Edit',
+    label: 'Правка',
     submenu: [
-      { role: 'undo' },
-      { role: 'redo' },
+      { label: 'Отменить', role: 'undo' },
+      { label: 'Повторить', role: 'redo' },
       { type: 'separator' },
-      { role: 'cut' },
-      { role: 'copy' },
-      { role: 'paste' },
-      ...(process.platform === 'darwin' ? [{ role: 'pasteAndMatchStyle' as const }] : []),
-      { role: 'delete' },
-      { role: 'selectAll' },
+      { label: 'Вырезать', role: 'cut' },
+      { label: 'Копировать', role: 'copy' },
+      { label: 'Вставить', role: 'paste' },
+      ...(process.platform === 'darwin'
+        ? [{ label: 'Вставить в текущем стиле', role: 'pasteAndMatchStyle' as const }]
+        : []),
+      { label: 'Удалить', role: 'delete' },
+      { label: 'Выделить всё', role: 'selectAll' },
       { type: 'separator' },
-      { label: 'Find', submenu: findSubmenu },
+      { label: 'Поиск', submenu: findSubmenu },
     ],
   });
 
   menuTemplate.push({
-    label: 'View',
+    label: 'Вид',
     submenu: [
-      { role: 'reload' },
-      { role: 'forceReload' },
+      { label: 'Перезагрузить', role: 'reload' },
+      { label: 'Принудительно перезагрузить', role: 'forceReload' },
       { type: 'separator' },
-      { role: 'resetZoom' },
-      { role: 'zoomIn' },
-      { role: 'zoomOut' },
+      { label: 'Сбросить масштаб', role: 'resetZoom' },
+      { label: 'Увеличить масштаб', role: 'zoomIn' },
+      { label: 'Уменьшить масштаб', role: 'zoomOut' },
       { type: 'separator' },
-      { role: 'togglefullscreen' },
+      { label: 'Полноэкранный режим', role: 'togglefullscreen' },
       ...(shortcuts.toggleNavigation
         ? [
             { type: 'separator' as const },
             {
-              label: 'Toggle Navigation',
+              label: 'Переключить навигацию',
               accelerator: shortcuts.toggleNavigation || undefined,
               click() {
                 const focusedWindow = BrowserWindow.getFocusedWindow();
@@ -1043,7 +1047,7 @@ app.whenReady().then(async () => {
   try {
     await appMain();
   } catch (error) {
-    dialog.showErrorBox('Goose Error', `Failed to create main window: ${error}`);
+    dialog.showErrorBox('Insightstream Error', `Failed to create main window: ${error}`);
     app.quit();
   }
 });

@@ -16,23 +16,23 @@ const POPULAR_TOPICS: ChatTopic[] = [
   {
     id: 'organize-photos',
     icon: <FolderTree className="w-5 h-5" />,
-    description: 'Organize the photos on my desktop into neat little folders by subject matter',
-    prompt: 'Organize the photos on my desktop into neat little folders by subject matter',
+    description: 'Разложи фотографии на моём рабочем столе по аккуратным папкам по темам',
+    prompt: 'Разложи фотографии на моём рабочем столе по аккуратным папкам по темам',
   },
   {
     id: 'government-forms',
     icon: <MessageSquare className="w-5 h-5" />,
     description:
-      'Describe in detail how various forms of government works and rank each by units of geese',
+      'Подробно опиши разные формы правления и ранжируй их по условной шкале',
     prompt:
-      'Describe in detail how various forms of government works and rank each by units of geese',
+      'Подробно опиши разные формы правления и ранжируй их по условной шкале',
   },
   {
     id: 'tamagotchi-game',
     icon: <Code className="w-5 h-5" />,
     description:
-      'Develop a tamagotchi game that lives on my computer and follows a pixelated styling',
-    prompt: 'Develop a tamagotchi game that lives on my computer and follows a pixelated styling',
+      'Разработай игру-тамагочи для моего компьютера в пиксельной стилистике',
+    prompt: 'Разработай игру-тамагочи для моего компьютера в пиксельной стилистике',
   },
 ];
 
@@ -43,7 +43,7 @@ export default function PopularChatTopics({ append }: PopularChatTopicsProps) {
 
   return (
     <div className="absolute bottom-0 left-0 p-6 max-w-md">
-      <h3 className="text-text-secondary text-sm mb-1">Popular chat topics</h3>
+      <h3 className="text-text-secondary text-sm mb-1">Популярные темы для чата</h3>
       <div className="space-y-1">
         {POPULAR_TOPICS.map((topic) => (
           <div
@@ -65,7 +65,7 @@ export default function PopularChatTopics({ append }: PopularChatTopicsProps) {
                   handleTopicClick(topic.prompt);
                 }}
               >
-                Start
+                Начать
               </button>
             </div>
           </div>

@@ -68,7 +68,7 @@ export const SessionsList: React.FC<SessionsListProps> = ({
               >
                 <div className="w-4 flex-shrink-0" />
                 <Plus className="w-4 h-4 flex-shrink-0 text-text-secondary" />
-                <span className="text-text-primary">Start New Chat</span>
+                <span className="text-text-primary">Начать новый чат</span>
               </div>
             )}
 
@@ -101,7 +101,7 @@ export const SessionsList: React.FC<SessionsListProps> = ({
                   <InlineEditText
                     value={getSessionDisplayName(session)}
                     onSave={(newName) => handleSaveSessionName(session.id, newName)}
-                    placeholder="Untitled session"
+                    placeholder="Без названия"
                     disabled={isStreaming}
                     singleClickEdit={false}
                     className="truncate text-text-primary flex-1 !px-0 !py-0 hover:bg-transparent"
@@ -130,7 +130,7 @@ export const SessionsList: React.FC<SessionsListProps> = ({
               >
                 <div className="w-4 flex-shrink-0" />
                 <History className="w-4 h-4 flex-shrink-0" />
-                <span>Show All</span>
+                <span>Показать все</span>
               </div>
             )}
           </div>

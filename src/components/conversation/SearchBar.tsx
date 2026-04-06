@@ -37,7 +37,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   searchResults,
   inputRef: externalInputRef,
   initialSearchTerm = '',
-  placeholder = 'Search conversation...',
+  placeholder = 'Поиск по диалогу...',
 }: SearchBarProps) => {
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [caseSensitive, setCaseSensitive] = useState(false);
@@ -190,7 +190,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                 ? 'bg-white/20 shadow-[inset_0_1px_2px_rgba(0,0,0,0.2)] text-text-inverse hover:bg-white/25'
                 : 'text-text-inverse/70 hover:text-text-inverse hover:bg-white/10'
             }`}
-            title="Case Sensitive"
+            title="С учётом регистра"
           >
             <span className="text-md font-normal">Aa</span>
           </Button>
@@ -200,7 +200,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
               onClick={(e) => handleNavigate('prev', e)}
               variant="ghost"
               className="no-drag flex items-center justify-center min-w-[32px] h-[28px] rounded transition-all duration-150 text-text-inverse/70 hover:text-text-inverse hover:bg-white/10"
-              title="Previous (↑)"
+              title="Предыдущее совпадение (↑)"
             >
               <ArrowUp
                 className={`h-5 w-5 transition-opacity ${!hasResults ? 'opacity-30' : ''}`}
@@ -210,7 +210,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
               onClick={(e) => handleNavigate('next', e)}
               variant="ghost"
               className="no-drag flex items-center justify-center min-w-[32px] h-[28px] rounded transition-all duration-150 text-text-inverse/70 hover:text-text-inverse hover:bg-white/10"
-              title="Next (↓ or Enter)"
+              title="Следующее совпадение (↓ или Enter)"
             >
               <ArrowDown
                 className={`h-5 w-5 transition-opacity ${!hasResults ? 'opacity-30' : ''}`}

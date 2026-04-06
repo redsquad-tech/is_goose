@@ -176,7 +176,7 @@ export const CondensedRenderer: React.FC<NavigationRendererProps> = ({
                                 'bg-background-tertiary hover:bg-background-inverse hover:text-text-inverse',
                                 'flex items-center justify-center'
                               )}
-                              title="New Chat"
+                              title="Новый чат"
                             >
                               <Plus className="w-4 h-4" />
                             </motion.button>

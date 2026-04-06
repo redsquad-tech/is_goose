@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       goosed_version:
-        description: 'Tag of redsquad-tech/is_goosed release to bundle (for example v0.1)'
+        description: 'Tag of redsquad-tech/is_goosed release to bundle (for example v0.2)'
         required: false
-        default: 'v0.1'
+        default: 'v0.2'
   push:
     branches:
       - main
@@ -27,7 +27,7 @@ jobs:
       contents: read
     env:
       GOOSED_REPOSITORY: redsquad-tech/is_goosed
-      GOOSED_VERSION: ${{ github.event.inputs.goosed_version || vars.GOOSED_VERSION || 'v0.1' }}
+      GOOSED_VERSION: ${{ github.event.inputs.goosed_version || vars.GOOSED_VERSION || 'v0.2' }}
       GOOSED_WINDOWS_ASSET: goosed-windows-x86_64.zip
 
     steps:
@@ -97,34 +97,34 @@ jobs:
       - name: Verify frontend bundle output
         shell: bash
         run: |
-          test -f out/Goose-win32-x64/Goose.exe
-          test -f out/make/wix/x64/Goose.msi
-          test -f out/Goose-win32-x64/resources/bin/goosed.exe
-          if [ -d out/Goose-win32-x64/resources/bin ]; then
-            ls -la out/Goose-win32-x64/resources/bin
+          test -f out/Insightstream-win32-x64/Insightstream.exe
+          test -f out/make/wix/x64/Insightstream.msi
+          test -f out/Insightstream-win32-x64/resources/bin/goosed.exe
+          if [ -d out/Insightstream-win32-x64/resources/bin ]; then
+            ls -la out/Insightstream-win32-x64/resources/bin
           fi
           ls -la out/make/wix/x64
 
       - name: Create Windows archive
         shell: pwsh
         run: |
-          if (Test-Path Goose-win32-x64.zip) {
-            Remove-Item Goose-win32-x64.zip -Force
+          if (Test-Path Insightstream-win32-x64.zip) {
+            Remove-Item Insightstream-win32-x64.zip -Force
           }
-          Compress-Archive -Path out/Goose-win32-x64/* -DestinationPath Goose-win32-x64.zip
+          Compress-Archive -Path out/Insightstream-win32-x64/* -DestinationPath Insightstream-win32-x64.zip
 
       - name: Copy MSI to root
         shell: bash
-        run: cp -f out/make/wix/x64/Goose.msi Goose.msi
+        run: cp -f out/make/wix/x64/Insightstream.msi Insightstream.msi
 
       - name: Upload Windows build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Goose-win32-x64
-          path: Goose-win32-x64.zip
+          name: Insightstream-win32-x64
+          path: Insightstream-win32-x64.zip
 
       - name: Upload MSI artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Goose-msi-x64
-          path: Goose.msi
+          name: Insightstream-msi-x64
+          path: Insightstream.msi

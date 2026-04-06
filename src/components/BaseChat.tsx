@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useRef,
 } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { SearchView } from './conversation/SearchView';
 import LoadingGoose from './LoadingGoose';
 import PopularChatTopics from './PopularChatTopics';
@@ -57,7 +57,6 @@ export default function BaseChat({
   isActiveSession,
 }: BaseChatProps) {
   const location = useLocation();
-  const navigate = useNavigate();
   const scrollRef = useRef<ScrollAreaHandle>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const disableAnimation = location.state?.disableAnimation || false;
@@ -80,7 +79,6 @@ export default function BaseChat({
     sessionLoadError,
     tokenState,
     notifications: toolCallNotifications,
-    onMessageUpdate,
   } = useChatStream({
     sessionId,
     onStreamFinish,
@@ -187,37 +185,6 @@ export default function BaseChat({
     return undefined;
   }, [isActiveSession, sessionId, chatState]);
 
-  useEffect(() => {
-    const handleSessionForked = (event: Event) => {
-      const customEvent = event as CustomEvent<{
-        newSessionId: string;
-        shouldStartAgent?: boolean;
-        editedMessage?: string;
-      }>;
-      window.dispatchEvent(new CustomEvent(AppEvents.SESSION_CREATED));
-      const { newSessionId, shouldStartAgent, editedMessage } = customEvent.detail;
-
-      const params = new URLSearchParams();
-      params.set('resumeSessionId', newSessionId);
-      if (shouldStartAgent) {
-        params.set('shouldStartAgent', 'true');
-      }
-
-      navigate(`/pair?${params.toString()}`, {
-        state: {
-          disableAnimation: true,
-          initialMessage: editedMessage ? { msg: editedMessage, images: [] } : undefined,
-        },
-      });
-    };
-
-    window.addEventListener(AppEvents.SESSION_FORKED, handleSessionForked);
-
-    return () => {
-      window.removeEventListener(AppEvents.SESSION_FORKED, handleSessionForked);
-    };
-  }, [location.pathname, navigate]);
-
   const showPopularTopics =
     messages.length === 0 && !initialMessage && chatState === ChatState.Idle;
 
@@ -249,7 +216,7 @@ export default function BaseChat({
             <div className="flex-1 bg-background-primary rounded-b-2xl flex items-center justify-center">
               <div className="flex flex-col items-center justify-center p-8">
                 <div className="text-red-700 dark:text-red-300 bg-red-400/50 p-4 rounded-lg mb-4 max-w-md">
-                  <h3 className="font-semibold mb-2">Failed to Load Session</h3>
+                  <h3 className="font-semibold mb-2">Не удалось загрузить сессию</h3>
                   <p className="text-sm">{sessionLoadError}</p>
                 </div>
                 <button
@@ -258,7 +225,7 @@ export default function BaseChat({
                   }}
                   className="px-4 py-2 text-center cursor-pointer text-text-primary border border-border-primary hover:bg-background-secondary rounded-lg transition-all duration-150"
                 >
-                  Go home
+                  На главную
                 </button>
               </div>
             </div>
@@ -301,7 +268,6 @@ export default function BaseChat({
                     isUserMessage={(m: Message) => m.role === 'user'}
                     isStreamingMessage={chatState !== ChatState.Idle}
                     onRenderingComplete={handleRenderingComplete}
-                    onMessageUpdate={onMessageUpdate}
                     submitElicitationResponse={submitElicitationResponse}
                   />
                 </SearchView>

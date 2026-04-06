@@ -104,7 +104,7 @@ export default function ElicitationRequest({
               d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <span>This request has expired. The extension will need to ask again.</span>
+          <span>Срок этого запроса истёк. Расширению нужно будет запросить данные снова.</span>
         </div>
       </div>
     );
@@ -114,14 +114,14 @@ export default function ElicitationRequest({
     <div className="flex flex-col">
       <div className="goose-message-content bg-background-secondary rounded-2xl rounded-b-none px-4 py-2 text-text-primary">
         <div className="flex justify-between items-start gap-4">
-          <span>{message || 'Goose needs some information from you.'}</span>
+          <span>{message || 'Insightstream нужны дополнительные данные от вас.'}</span>
         </div>
       </div>
       <div className="goose-message-content bg-background-primary border border-border-primary dark:border-gray-700 rounded-b-2xl px-4 py-3">
         <JsonSchemaForm
           schema={requested_schema as JsonSchema}
           onSubmit={handleSubmit}
-          submitLabel="Submit"
+          submitLabel="Отправить"
         />
         <div
           className={`mt-3 pt-3 border-t border-border-primary flex items-center gap-2 text-sm ${isUrgent ? 'text-red-500' : 'text-text-secondary'}`}

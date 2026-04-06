@@ -12,8 +12,8 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { id: 'home', path: '/', label: 'Home', icon: Home },
-  { id: 'chat', path: '/pair', label: 'Chat', icon: MessageSquare, hasSubItems: true },
+  { id: 'home', path: '/', label: 'Главная', icon: Home },
+  { id: 'chat', path: '/pair', label: 'Чат', icon: MessageSquare, hasSubItems: true },
 ];
 
 export function getNavItemById(id: string): NavItem | undefined {

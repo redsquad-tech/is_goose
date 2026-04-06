@@ -93,7 +93,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
   const formatTimestamp = (timestamp: number) => {
     const now = Date.now();
     const diff = now - timestamp;
-    if (diff < 60000) return 'now';
+    if (diff < 60000) return 'сейчас';
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
     return `${Math.floor(diff / 3600000)}h`;
   };
@@ -150,7 +150,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
                   onStopAndSend(nextMessage.id);
                 }}
                 className="h-7 px-2 text-xs text-info hover:text-info/80 hover:bg-info/10"
-                title="Send this message now"
+                title="Отправить это сообщение сейчас"
               >
                 <Send className="w-3 h-3" />
               </Button>
@@ -161,7 +161,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
               variant="ghost"
               size="sm"
               className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-              title="Expand queue"
+              title="Развернуть очередь"
             >
               <ChevronDown className="w-4 h-4" />
             </Button>
@@ -173,7 +173,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
           <div className="px-4 py-1.5 bg-amber-50/60 dark:bg-amber-900/20 border-b border-amber-200/30 dark:border-amber-800/30">
             <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
               <Zap className="w-3 h-3" />
-              <span>Queue paused - click "Send" or add new message to resume</span>
+              <span>Очередь приостановлена. Нажмите «Отправить» или добавьте новое сообщение, чтобы продолжить</span>
             </div>
           </div>
         )}
@@ -202,11 +202,11 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-medium text-foreground">
-              {isPaused ? 'Queue Paused' : 'Message Queue'}
+              {isPaused ? 'Очередь приостановлена' : 'Очередь сообщений'}
             </span>
             <span className="text-xs text-muted-foreground">
-              {queuedMessages.length} message{queuedMessages.length !== 1 ? 's' : ''}
-              {isPaused ? ' waiting' : ' queued'}
+              {queuedMessages.length} {queuedMessages.length === 1 ? 'сообщение' : queuedMessages.length < 5 ? 'сообщения' : 'сообщений'}
+              {isPaused ? ' ожидает' : ' в очереди'}
             </span>
           </div>
         </div>
@@ -219,7 +219,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
               onClick={onClearQueue}
               className="text-xs h-7 px-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             >
-              Clear All
+              Очистить всё
             </Button>
           )}
 
@@ -229,7 +229,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
             size="sm"
             onClick={() => setIsExpanded(false)}
             className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-            title="Collapse queue"
+            title="Свернуть очередь"
           >
             <ChevronUp className="w-4 h-4" />
           </Button>
@@ -242,7 +242,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
           <div className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-200">
             <Zap className="w-4 h-4" />
             <span>
-              Queue paused by interruption. Use "Send Now" or add a new message to resume.
+              Очередь приостановлена из-за прерывания. Используйте «Отправить сейчас» или добавьте новое сообщение, чтобы продолжить.
             </span>
           </div>
         </div>
@@ -328,7 +328,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
                         }}
                         className="h-6 px-2 text-xs"
                       >
-                        Save
+                        Сохранить
                       </Button>
                       <Button
                         variant="ghost"
@@ -344,14 +344,14 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
                         }}
                         className="h-6 px-2 text-xs"
                       >
-                        Cancel
+                        Отмена
                       </Button>
                     </div>
                   </div>
                 ) : (
                   <p
                     className="text-sm text-foreground leading-relaxed cursor-pointer hover:bg-muted/30 rounded px-1 py-0.5 transition-colors"
-                    title={`${message.content} (Click to edit)`}
+                    title={`${message.content} (Нажмите, чтобы изменить)`}
                     onClick={() => {
                       setEditingMessage(message.id);
                       if (editingMessageIdRef) editingMessageIdRef.current = message.id;
@@ -385,8 +385,8 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
                     }`}
                     title={
                       editingMessage === message.id
-                        ? 'Cannot send while editing'
-                        : 'Stop current processing and send this message now'
+                        ? 'Нельзя отправить во время редактирования'
+                        : 'Остановить текущую обработку и отправить это сообщение сейчас'
                     }
                   >
                     <Send className="w-3 h-3" />
@@ -399,7 +399,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
                   size="sm"
                   onClick={() => onRemoveMessage(message.id)}
                   className="opacity-60 hover:opacity-100 transition-opacity h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive rounded-full"
-                  title="Remove this message from queue"
+                  title="Удалить это сообщение из очереди"
                 >
                   <X className="w-3 h-3" />
                 </Button>
@@ -414,7 +414,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
             {/* Next up indicator */}
             {index === 0 && !isPaused && (
               <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow-md">
-                Next
+                Далее
               </div>
             )}
           </div>
@@ -425,7 +425,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
       {onReorderMessages && queuedMessages.length > 1 && (
         <div className="px-4 pb-3 text-xs text-muted-foreground flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
           <GripVertical className="w-3 h-3" />
-          <span>Drag messages to reorder priority</span>
+          <span>Перетащите сообщения, чтобы изменить приоритет</span>
         </div>
       )}
     </div>

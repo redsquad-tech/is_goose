@@ -43,7 +43,6 @@ interface ProgressiveMessageListProps {
   // Custom render function for messages
   renderMessage?: (message: Message, index: number) => React.ReactNode | null;
   isStreamingMessage?: boolean; // Whether messages are currently being streamed
-  onMessageUpdate?: (messageId: string, newContent: string, editType?: 'fork' | 'edit') => void;
   onRenderingComplete?: () => void; // Callback when all messages are rendered
   submitElicitationResponse?: (
     elicitationId: string,
@@ -62,7 +61,6 @@ export default function ProgressiveMessageList({
   showLoadingThreshold = 50,
   renderMessage, // Custom render function
   isStreamingMessage = false, // Whether messages are currently being streamed
-  onMessageUpdate,
   onRenderingComplete,
   submitElicitationResponse,
 }: ProgressiveMessageListProps) {
@@ -227,7 +225,7 @@ export default function ProgressiveMessageList({
           >
             {isUser ? (
               !hasOnlyToolResponses(message) && (
-                <UserMessage message={message} onMessageUpdate={onMessageUpdate} />
+                <UserMessage message={message} />
               )
             ) : (
               <GooseMessage
@@ -258,7 +256,6 @@ export default function ProgressiveMessageList({
     append,
     toolCallNotifications,
     isStreamingMessage,
-    onMessageUpdate,
     toolCallChains,
     submitElicitationResponse,
   ]);
@@ -270,9 +267,9 @@ export default function ProgressiveMessageList({
       {/* Loading indicator when progressively rendering */}
       {isLoading && (
         <div className="flex flex-col items-center justify-center py-8">
-          <LoadingGoose message={`Loading messages... (${renderedCount}/${messages.length})`} />
+          <LoadingGoose message={`Загружаем сообщения... (${renderedCount}/${messages.length})`} />
           <div className="text-xs text-text-secondary mt-2">
-            Press Cmd/Ctrl+F to load all messages immediately for search
+            Нажмите Cmd/Ctrl+F, чтобы сразу загрузить все сообщения для поиска
           </div>
         </div>
       )}

@@ -120,7 +120,7 @@ const CodeBlock = memo(function CodeBlock({
         className="absolute right-2 bottom-2 p-1.5 rounded-lg bg-gray-700/50 text-gray-300 font-sans text-sm
                  opacity-0 group-hover:opacity-100 transition-opacity duration-200
                  hover:bg-gray-600/50 hover:text-gray-100 z-10"
-        title="Copy code"
+        title="Скопировать код"
       >
         {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
       </button>
@@ -262,13 +262,13 @@ const MarkdownContent = memo(function MarkdownContent({
       </div>
       <ConfirmationModal
         isOpen={pendingLink !== null}
-        title="Open External Link"
-        message={`Open ${pendingLink?.protocol ?? ''} link?`}
-        detail={`This will open: ${pendingLink?.href ?? ''}`}
+        title="Открыть внешнюю ссылку"
+        message={`Открыть ссылку ${pendingLink?.protocol ?? ''}?`}
+        detail={`Будет открыта ссылка: ${pendingLink?.href ?? ''}`}
         onConfirm={handleConfirmOpen}
         onCancel={handleCancelOpen}
-        confirmLabel="Open"
-        cancelLabel="Cancel"
+        confirmLabel="Открыть"
+        cancelLabel="Отмена"
       />
     </>
   );

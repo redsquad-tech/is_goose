@@ -73,12 +73,12 @@ const EditSessionModal = React.memo<EditSessionModalProps>(
         await onSave(session.id, trimmedDescription);
         onClose();
         setTimeout(() => {
-          toast.success('Session description updated successfully');
+          toast.success('Описание сессии успешно обновлено');
         }, 300);
       } catch (error) {
         const errMsg = errorMessage(error, 'Unknown error occurred');
         console.error('Failed to update session description:', errMsg);
-        toast.error(`Failed to update session description: ${errMsg}`);
+        toast.error(`Не удалось обновить описание сессии: ${errMsg}`);
         setDescription(session.name);
       } finally {
         setIsUpdating(false);
@@ -111,7 +111,7 @@ const EditSessionModal = React.memo<EditSessionModalProps>(
     return (
       <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50">
         <div className="bg-background-primary border border-border-primary rounded-lg p-6 w-[500px] max-w-[90vw]">
-          <h3 className="text-lg font-medium text-text-primary mb-4">Edit Session Description</h3>
+          <h3 className="text-lg font-medium text-text-primary mb-4">Изменить описание сессии</h3>
 
           <div className="space-y-4">
             <div>
@@ -121,7 +121,7 @@ const EditSessionModal = React.memo<EditSessionModalProps>(
                 value={description}
                 onChange={handleInputChange}
                 className="w-full p-3 border border-border-primary rounded-lg bg-background-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter session description"
+                placeholder="Введите описание сессии"
                 autoFocus
                 maxLength={200}
                 onKeyDown={handleKeyDown}
@@ -132,14 +132,14 @@ const EditSessionModal = React.memo<EditSessionModalProps>(
 
           <div className="flex justify-end space-x-3 mt-6">
             <Button onClick={handleCancel} variant="ghost" disabled={isUpdating || disabled}>
-              Cancel
+              Отмена
             </Button>
             <Button
               onClick={handleSave}
               disabled={!description.trim() || isUpdating || disabled}
               variant="default"
             >
-              {isUpdating ? 'Saving...' : 'Save'}
+              {isUpdating ? 'Сохраняем...' : 'Сохранить'}
             </Button>
           </div>
         </div>
@@ -394,14 +394,14 @@ const SessionListView: React.FC = React.memo(() => {
           path: { session_id: sessionToDeleteId },
           throwOnError: true,
         });
-        toast.success('Session deleted successfully');
+        toast.success('Сессия успешно удалена');
         window.dispatchEvent(
           new CustomEvent(AppEvents.SESSION_DELETED, { detail: { sessionId: sessionToDeleteId } })
         );
       } catch (error) {
         console.error('Error deleting session:', error);
         toast.error(
-          `Failed to delete session "${sessionName}": ${errorMessage(error, 'Unknown error')}`
+          `Не удалось удалить сессию "${sessionName}": ${errorMessage(error, 'Неизвестная ошибка')}`
         );
       }
       await loadSessions();
@@ -468,14 +468,14 @@ const SessionListView: React.FC = React.memo(() => {
             <button
               onClick={handleEditClick}
               className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-              title="Edit session name"
+              title="Изменить название сессии"
             >
               <Edit2 className="w-3 h-3 text-text-secondary hover:text-text-primary" />
             </button>
             <button
               onClick={handleDeleteClick}
               className="p-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer transition-colors"
-              title="Delete session"
+              title="Удалить сессию"
             >
               <Trash2 className="w-3 h-3 text-red-500 hover:text-red-600" />
             </button>
@@ -526,10 +526,10 @@ const SessionListView: React.FC = React.memo(() => {
         return (
           <div className="flex flex-col items-center justify-center h-full text-text-secondary">
             <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-            <p className="text-lg mb-2">Error Loading Sessions</p>
+            <p className="text-lg mb-2">Не удалось загрузить сессии</p>
             <p className="text-sm text-center mb-4">{error}</p>
             <Button onClick={loadSessions} variant="default">
-              Try Again
+              Попробовать снова
             </Button>
           </div>
         );
@@ -539,8 +539,8 @@ const SessionListView: React.FC = React.memo(() => {
         return (
           <div className="flex flex-col justify-center h-full text-text-secondary">
             <MessageSquareText className="h-12 w-12 mb-4" />
-            <p className="text-lg mb-2">No chat sessions found</p>
-            <p className="text-sm">Your chat history will appear here</p>
+            <p className="text-lg mb-2">Чаты пока не найдены</p>
+            <p className="text-sm">Здесь появится история ваших диалогов</p>
           </div>
         );
       }
@@ -549,8 +549,8 @@ const SessionListView: React.FC = React.memo(() => {
         return (
           <div className="flex flex-col items-center justify-center h-full text-text-secondary mt-4">
             <MessageSquareText className="h-12 w-12 mb-4" />
-            <p className="text-lg mb-2">No matching sessions found</p>
-            <p className="text-sm">Try adjusting your search terms</p>
+            <p className="text-lg mb-2">Подходящие сессии не найдены</p>
+            <p className="text-sm">Попробуйте изменить поисковый запрос</p>
           </div>
         );
       }
@@ -579,7 +579,7 @@ const SessionListView: React.FC = React.memo(() => {
             <div className="flex justify-center py-8">
               <div className="flex items-center space-x-2 text-text-secondary">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2"></div>
-                <span>Loading more sessions...</span>
+                <span>Загружаем дополнительные сессии...</span>
               </div>
             </div>
           )}
@@ -594,11 +594,11 @@ const SessionListView: React.FC = React.memo(() => {
             <div className="bg-background-primary px-8 pb-8 pt-16">
               <div className="flex flex-col page-transition">
                 <div className="flex justify-between items-center mb-1">
-                  <h1 className="text-4xl font-light">Chat history</h1>
+                  <h1 className="text-4xl font-light">История чатов</h1>
                 </div>
                 <p className="text-sm text-text-secondary mb-4">
-                  View and search your past conversations with Goose. {getSearchShortcutText()} to
-                  search.
+                  Просматривайте и ищите ваши прошлые диалоги в Insightstream.{' '}
+                  {getSearchShortcutText()} для поиска.
                 </p>
               </div>
             </div>
@@ -611,7 +611,7 @@ const SessionListView: React.FC = React.memo(() => {
                     onNavigate={handleSearchNavigation}
                     searchResults={searchResults}
                     className="relative"
-                    placeholder="Search history..."
+                    placeholder="Поиск по истории..."
                   >
                     {/* Skeleton layer - always rendered but conditionally visible */}
                     <div
@@ -682,10 +682,10 @@ const SessionListView: React.FC = React.memo(() => {
 
         <ConfirmationModal
           isOpen={showDeleteConfirmation}
-          title="Delete Session"
-          message={`Are you sure you want to delete the session "${sessionToDelete?.name}"? This action cannot be undone.`}
-          confirmLabel="Delete Session"
-          cancelLabel="Cancel"
+          title="Удалить сессию"
+          message={`Вы уверены, что хотите удалить сессию "${sessionToDelete?.name}"? Это действие нельзя отменить.`}
+          confirmLabel="Удалить сессию"
+          cancelLabel="Отмена"
           confirmVariant="destructive"
           onConfirm={handleConfirmDelete}
           onCancel={handleCancelDelete}

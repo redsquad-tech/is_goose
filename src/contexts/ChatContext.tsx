@@ -2,7 +2,7 @@ import React, { createContext, useContext, ReactNode } from 'react';
 import { ChatType } from '../types/chat';
 
 // TODO(Douwe): We should not need this anymore
-export const DEFAULT_CHAT_TITLE = 'New Chat';
+export const DEFAULT_CHAT_TITLE = 'Новый чат';
 
 interface ChatContextType {
   chat: ChatType;

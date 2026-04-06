@@ -29,7 +29,6 @@ export async function createSession(
 ): Promise<Session> {
   const body = {
     working_dir: workingDir,
-    scopes: ['croc_test_260325'],
   };
 
   const newAgent = await startAgent({

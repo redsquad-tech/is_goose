@@ -456,7 +456,7 @@ export default function ChatInput({
           id: `error-${Date.now()}`,
           dataUrl: '',
           isLoading: false,
-          error: `Cannot paste ${imageFiles.length} image(s). Maximum ${MAX_IMAGES_PER_MESSAGE} images per message allowed. Currently have ${pastedImages.length}.`,
+          error: `Нельзя вставить ${imageFiles.length} изображений. Максимум на одно сообщение: ${MAX_IMAGES_PER_MESSAGE}. Сейчас уже добавлено: ${pastedImages.length}.`,
         },
       ]);
 
@@ -827,11 +827,11 @@ export default function ChatInput({
     chatState === ChatState.RestartingAgent;
 
   const getSubmitButtonTooltip = (): string => {
-    if (isAnyImageLoading) return 'Waiting for images to save...';
-    if (isAnyDroppedFileLoading) return 'Processing dropped files...';
-    if (chatState === ChatState.RestartingAgent) return 'Restarting session...';
-    if (!hasSubmittableContent) return 'Type a message to send';
-    return 'Send';
+    if (isAnyImageLoading) return 'Ожидаем сохранения изображений...';
+    if (isAnyDroppedFileLoading) return 'Обрабатываем добавленные файлы...';
+    if (chatState === ChatState.RestartingAgent) return 'Перезапускаем сессию...';
+    if (!hasSubmittableContent) return 'Введите сообщение для отправки';
+    return 'Отправить';
   };
 
   // Queue management functions - no storage persistence, only in-memory
@@ -929,7 +929,7 @@ export default function ChatInput({
             data-testid="chat-input"
             autoFocus
             id="dynamic-textarea"
-            placeholder="Write a message"
+            placeholder="Введите сообщение"
             value={displayValue}
             onChange={handleChange}
             onCompositionStart={handleCompositionStart}
@@ -973,14 +973,14 @@ export default function ChatInput({
                       shape="round"
                       variant="outline"
                       disabled={isSubmitButtonDisabled}
-                      className={`rounded-full px-10 py-2 flex items-center gap-2 ${
+                      className={`rounded-full min-w-[132px] px-4 py-2 flex items-center justify-center gap-2 ${
                         isSubmitButtonDisabled
                           ? 'bg-slate-600 text-white cursor-not-allowed opacity-50 border-slate-600'
                           : 'bg-slate-600 text-white hover:bg-slate-700 border-slate-600 hover:cursor-pointer'
                       }`}
                     >
                       <Send className="w-4 h-4" />
-                      <span className="text-sm">Send</span>
+                      <span className="text-sm">Отправить</span>
                     </Button>
                   </span>
                 </TooltipTrigger>

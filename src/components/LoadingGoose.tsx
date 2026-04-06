@@ -9,13 +9,13 @@ interface LoadingGooseProps {
 }
 
 const STATE_MESSAGES: Record<ChatState, string> = {
-  [ChatState.LoadingConversation]: 'loading conversation...',
-  [ChatState.Thinking]: 'goose is thinking…',
-  [ChatState.Streaming]: 'goose is working on it…',
-  [ChatState.WaitingForUserInput]: 'goose is waiting…',
-  [ChatState.Compacting]: 'goose is compacting the conversation...',
-  [ChatState.Idle]: 'goose is working on it…',
-  [ChatState.RestartingAgent]: 'restarting session...',
+  [ChatState.LoadingConversation]: 'Загружаем диалог...',
+  [ChatState.Thinking]: 'Insightstream думает…',
+  [ChatState.Streaming]: 'Insightstream работает над ответом…',
+  [ChatState.WaitingForUserInput]: 'Insightstream ожидает данные…',
+  [ChatState.Compacting]: 'Insightstream уплотняет диалог...',
+  [ChatState.Idle]: 'Insightstream работает над ответом…',
+  [ChatState.RestartingAgent]: 'Перезапускаем сессию...',
 };
 
 const STATE_ICONS: Record<ChatState, React.ReactNode> = {

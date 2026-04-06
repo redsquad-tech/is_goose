@@ -15,7 +15,7 @@ const App = lazy(() => import('./App'));
   console.log('window created, getting goosed connection info');
   const gooseApiHost = await window.electron.getGoosedHostPort();
   if (gooseApiHost === null) {
-    window.alert('failed to start goose backend process');
+    window.alert('Не удалось запустить локальный backend Insightstream');
     return;
   }
   console.log('connecting at', gooseApiHost);

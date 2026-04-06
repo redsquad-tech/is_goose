@@ -17,7 +17,7 @@ let cfg = {
   // Protocol registration
   protocols: [
     {
-      name: 'GooseProtocol',
+      name: 'InsightstreamProtocol',
       schemes: ['goose'],
     },
   ],
@@ -33,8 +33,8 @@ let cfg = {
       },
     ],
     // Usage descriptions for macOS TCC (Transparency, Consent, and Control)
-    NSCalendarsUsageDescription: 'Goose needs access to your calendars to help manage and query calendar events.',
-    NSRemindersUsageDescription: 'Goose needs access to your reminders to help manage and query reminders.',
+    NSCalendarsUsageDescription: 'Insightstream needs access to your calendars to help manage and query calendar events.',
+    NSRemindersUsageDescription: 'Insightstream needs access to your reminders to help manage and query reminders.',
   },
 };
 
@@ -74,16 +74,16 @@ module.exports = {
         icon: resolve(__dirname, 'src/images/icon.ico'),
         ui: false,
         defaultInstallMode: 'perMachine',
-        shortcutFolderName: 'Goose',
-        shortcutName: 'Goose',
-        programFilesFolderName: 'Goose',
+        shortcutFolderName: 'Insightstream',
+        shortcutName: 'Insightstream',
+        programFilesFolderName: 'Insightstream',
       },
     },
     {
       name: '@electron-forge/maker-deb',
       config: {
-        name: 'Goose',
-        bin: 'Goose',
+        name: 'Insightstream',
+        bin: 'Insightstream',
         maintainer: 'Block, Inc.',
         homepage: 'https://block.github.io/goose/',
         categories: ['Development'],
@@ -97,8 +97,8 @@ module.exports = {
     {
       name: '@electron-forge/maker-rpm',
       config: {
-        name: 'Goose',
-        bin: 'Goose',
+        name: 'Insightstream',
+        bin: 'Insightstream',
         maintainer: 'Block, Inc.',
         homepage: 'https://block.github.io/goose/',
         categories: ['Development'],
@@ -114,7 +114,7 @@ module.exports = {
       name: '@electron-forge/maker-flatpak',
       config: {
         options: {
-          id: 'io.github.block.Goose',
+          id: 'io.github.redsquad-tech.Insightstream',
           categories: ['Development'],
           icon: {
             'scalable': 'src/images/icon.svg',
@@ -123,7 +123,7 @@ module.exports = {
           homepage: 'https://block.github.io/goose/',
           runtimeVersion: '25.08',
           baseVersion: '25.08',
-          bin: 'Goose',
+          bin: 'Insightstream',
           modules: [
             {
               name: 'libbz2-shim',
