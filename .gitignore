@@ -10,6 +10,5 @@ src/bin/goose-npm/
 /src/bin/temporal-service
 src/bin/temporal.db
 vendor/goosed-release/
-src/bin/goosed.env
 # Signing credentials
 .env.signing

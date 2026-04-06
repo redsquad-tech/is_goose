@@ -292,10 +292,6 @@ interface BundledConfig {
   version?: string;
 }
 
-const GOOSED_RUNTIME_ENV_KEYS = ['GOOSE_PROVIDER', 'GOOSE_MODEL', 'OPENAI_API_KEY'] as const;
-
-type GoosedRuntimeEnv = Partial<Record<(typeof GOOSED_RUNTIME_ENV_KEYS)[number], string>>;
-
 const getBundledConfig = (): BundledConfig => {
   //{env-macro-start}//
   //needed when goose is bundled for a specific provider
@@ -318,52 +314,6 @@ const resolveGoosePathRoot = (): string | undefined => {
     return expandTilde(pathRoot);
   }
   return path.join(app.getPath('userData'), 'goosed');
-};
-
-const parseEnvFile = (contents: string): Record<string, string> => {
-  const env: Record<string, string> = {};
-
-  for (const rawLine of contents.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith('#')) {
-      continue;
-    }
-
-    const separatorIndex = line.indexOf('=');
-    if (separatorIndex <= 0) {
-      continue;
-    }
-
-    const key = line.slice(0, separatorIndex).trim();
-    const value = line.slice(separatorIndex + 1).trim();
-    env[key] = value;
-  }
-
-  return env;
-};
-
-const getGoosedRuntimeEnv = (): GoosedRuntimeEnv => {
-  const envPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'bin', 'goosed.env')
-    : path.join(process.cwd(), 'src', 'bin', 'goosed.env');
-
-  let fileEnv: Record<string, string> = {};
-
-  try {
-    if (fsSync.existsSync(envPath)) {
-      fileEnv = parseEnvFile(fsSync.readFileSync(envPath, 'utf8'));
-    }
-  } catch (error) {
-    log.warn(`Failed to read goosed runtime env file at ${envPath}:`, error);
-  }
-
-  return GOOSED_RUNTIME_ENV_KEYS.reduce<GoosedRuntimeEnv>((acc, key) => {
-    const value = process.env[key]?.trim() || fileEnv[key]?.trim();
-    if (value) {
-      acc[key] = value;
-    }
-    return acc;
-  }, {});
 };
 
 const GENERATED_SECRET = crypto.randomBytes(32).toString('hex');
@@ -395,8 +345,6 @@ let appConfig = {
   GOOSE_ALLOWLIST_WARNING: process.env.GOOSE_ALLOWLIST_WARNING === 'true',
 };
 
-const goosedRuntimeEnv = getGoosedRuntimeEnv();
-
 const windowMap = new Map<number, BrowserWindow>();
 const goosedClients = new Map<number, Client>();
 // Track pending initial messages per window
@@ -420,7 +368,6 @@ const createChat = async (app: App, options: CreateChatOptions = {}) => {
     env: {
       GOOSE_PATH_ROOT: appConfig.GOOSE_PATH_ROOT as string | undefined,
       GOOSE_DISABLE_KEYRING: '1',
-      ...goosedRuntimeEnv,
     },
     externalGoosed: settings.externalGoosed,
     isPackaged: app.isPackaged,

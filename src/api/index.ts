@@ -16,6 +16,7 @@ export {
   removeConfig,
   resumeAgent,
   searchSessions,
+  setConfigProvider,
   startAgent,
   startOpenrouterSetup,
   startTetrateSetup,

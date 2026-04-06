@@ -33,6 +33,8 @@ import { trackErrorWithContext } from './utils/analytics';
 import { errorMessage } from './utils/conversionUtils';
 import { getInitialWorkingDir } from './utils/workingDir';
 import { AppEvents } from './constants/events';
+import { ConfigProvider, useConfig } from './components/ConfigContext';
+import InsightStreamOnboarding from './components/InsightStreamOnboarding';
 
 // Route Components
 const HubRouteWrapper = () => {
@@ -122,8 +124,50 @@ const SessionsRoute = () => {
   return <SessionsView />;
 };
 
+const AppRoutes = ({
+  chat,
+  setChat,
+  activeSessions,
+  setActiveSessions,
+}: {
+  chat: ChatType;
+  setChat: React.Dispatch<React.SetStateAction<ChatType>>;
+  activeSessions: Array<{ sessionId: string; initialMessage?: UserInput }>;
+  setActiveSessions: React.Dispatch<
+    React.SetStateAction<Array<{ sessionId: string; initialMessage?: UserInput }>>
+  >;
+}) => {
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <ChatProvider chat={chat} setChat={setChat} contextKey="hub">
+            <AppLayout activeSessions={activeSessions} />
+          </ChatProvider>
+        }
+      >
+        <Route index element={<HubRouteWrapper />} />
+        <Route
+          path="pair"
+          element={
+            <PairRouteWrapper
+              activeSessions={activeSessions}
+              setActiveSessions={setActiveSessions}
+            />
+          }
+        />
+        <Route path="sessions" element={<SessionsRoute />} />
+      </Route>
+    </Routes>
+  );
+};
+
 export function AppInner() {
   const [fatalError, setFatalError] = useState<string | null>(null);
+  const { read } = useConfig();
+  const [isCheckingProvider, setIsCheckingProvider] = useState(true);
+  const [isProviderConfigured, setIsProviderConfigured] = useState(false);
 
   const navigate = useNavigate();
 
@@ -187,6 +231,27 @@ export function AppInner() {
       window.removeEventListener(AppEvents.CLEAR_INITIAL_MESSAGE, handleClearInitialMessage);
     };
   }, []);
+
+  useEffect(() => {
+    const checkProvider = async () => {
+      try {
+        const provider = await read('GOOSE_PROVIDER', false);
+        const apiKey = await read('OPENAI_API_KEY', true);
+
+        const hasProvider = typeof provider === 'string' && provider.trim().length > 0;
+        const hasApiKey = apiKey !== null;
+
+        setIsProviderConfigured(hasProvider && hasApiKey);
+      } catch (error) {
+        console.error('Failed to check provider configuration:', error);
+        setIsProviderConfigured(false);
+      } finally {
+        setIsCheckingProvider(false);
+      }
+    };
+
+    void checkProvider();
+  }, [read]);
 
   useEffect(() => {
     console.log('Sending reactReady signal to Electron');
@@ -351,28 +416,20 @@ export function AppInner() {
       <div className="relative w-screen h-screen overflow-hidden bg-background-secondary flex flex-col">
         <div className="titlebar-drag-region" />
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <ChatProvider chat={chat} setChat={setChat} contextKey="hub">
-                  <AppLayout activeSessions={activeSessions} />
-                </ChatProvider>
-              }
-            >
-              <Route index element={<HubRouteWrapper />} />
-              <Route
-                path="pair"
-                element={
-                  <PairRouteWrapper
-                    activeSessions={activeSessions}
-                    setActiveSessions={setActiveSessions}
-                  />
-                }
-              />
-              <Route path="sessions" element={<SessionsRoute />} />
-            </Route>
-          </Routes>
+          {isCheckingProvider ? (
+            <div className="h-full w-full flex items-center justify-center text-text-secondary">
+              Проверяем настройки...
+            </div>
+          ) : isProviderConfigured ? (
+            <AppRoutes
+              chat={chat}
+              setChat={setChat}
+              activeSessions={activeSessions}
+              setActiveSessions={setActiveSessions}
+            />
+          ) : (
+            <InsightStreamOnboarding onConfigured={() => setIsProviderConfigured(true)} />
+          )}
         </div>
       </div>
     </>
@@ -382,9 +439,11 @@ export function AppInner() {
 export default function App() {
   return (
     <ThemeProvider>
-      <HashRouter>
-        <AppInner />
-      </HashRouter>
+      <ConfigProvider>
+        <HashRouter>
+          <AppInner />
+        </HashRouter>
+      </ConfigProvider>
     </ThemeProvider>
   );
 }
