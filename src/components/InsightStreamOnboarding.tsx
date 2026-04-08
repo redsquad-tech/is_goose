@@ -7,7 +7,7 @@ import { setConfigProvider } from '../api';
 
 const INSIGHTSTREAM_PROVIDER = 'openai';
 const INSIGHTSTREAM_MODEL = 'compressa1';
-const INSIGHTSTREAM_HOST = 'http://console.insightstream.ru:8080';
+const INSIGHTSTREAM_HOST = 'https://provider.redsquad.tech';
 const INSIGHTSTREAM_BASE_PATH = 'v1/responses';
 
 interface InsightStreamOnboardingProps {
