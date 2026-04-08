@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       goosed_version:
-        description: 'Tag of redsquad-tech/is_goosed release to bundle (for example v0.2)'
+        description: 'Tag of redsquad-tech/is_goosed release to bundle (for example v0.3). Leave empty to use repo variable or latest release.'
         required: false
-        default: 'v0.2'
+        default: ''
   push:
     branches:
       - main
@@ -27,7 +27,6 @@ jobs:
       contents: read
     env:
       GOOSED_REPOSITORY: redsquad-tech/is_goosed
-      GOOSED_VERSION: ${{ github.event.inputs.goosed_version || vars.GOOSED_VERSION || 'v0.2' }}
       GOOSED_WINDOWS_ASSET: goosed-windows-x86_64.zip
 
     steps:
@@ -40,9 +39,38 @@ jobs:
           node-version: 24.10.0
           cache: npm
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.0'
+
       - name: Install desktop dependencies
         shell: bash
         run: npm ci
+
+      - name: Resolve bundled goosed version
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.IS_GOOSED_RELEASE_TOKEN || github.token }}
+          INPUT_VERSION: ${{ github.event.inputs.goosed_version }}
+          REPO_VERSION: ${{ vars.GOOSED_VERSION }}
+        run: |
+          $resolvedVersion = "${env:INPUT_VERSION}".Trim()
+          if (-not $resolvedVersion) {
+            $resolvedVersion = "${env:REPO_VERSION}".Trim()
+          }
+
+          if (-not $resolvedVersion) {
+            Write-Host "No explicit goosed version provided, resolving latest release from ${env:GOOSED_REPOSITORY}"
+            $resolvedVersion = gh release view --repo ${env:GOOSED_REPOSITORY} --json tagName --jq ".tagName"
+          }
+
+          if (-not $resolvedVersion) {
+            throw "Failed to resolve goosed release tag"
+          }
+
+          Write-Host "Using goosed release tag: $resolvedVersion"
+          "GOOSED_VERSION=$resolvedVersion" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Download bundled goosed release
         shell: pwsh
@@ -75,6 +103,34 @@ jobs:
           Copy-Item $goosed.FullName "src/bin/goosed.exe" -Force
           Get-ChildItem src/bin
 
+      - name: Build bundled web search CLI tools
+        shell: pwsh
+        run: |
+          Write-Host "Building ddg-search.exe and page-dump.exe"
+
+          $gopath = (go env GOPATH).Trim()
+          if (-not $gopath) {
+            throw "go env GOPATH returned empty value"
+          }
+
+          go install github.com/Djarvur/ddg-search/cmd/ddg-search@latest
+          go install github.com/Djarvur/ddg-search/cmd/page-dump@latest
+
+          $ddgSearch = Join-Path $gopath "bin/ddg-search.exe"
+          $pageDump = Join-Path $gopath "bin/page-dump.exe"
+
+          if (-not (Test-Path $ddgSearch)) {
+            throw "ddg-search.exe was not produced at $ddgSearch"
+          }
+
+          if (-not (Test-Path $pageDump)) {
+            throw "page-dump.exe was not produced at $pageDump"
+          }
+
+          Copy-Item $ddgSearch "src/bin/ddg-search.exe" -Force
+          Copy-Item $pageDump "src/bin/page-dump.exe" -Force
+          Get-ChildItem src/bin
+
       - name: Install WiX Toolset
         shell: pwsh
         run: |
@@ -100,6 +156,8 @@ jobs:
           test -f out/Insightstream-win32-x64/Insightstream.exe
           test -f out/make/wix/x64/Insightstream.msi
           test -f out/Insightstream-win32-x64/resources/bin/goosed.exe
+          test -f out/Insightstream-win32-x64/resources/bin/ddg-search.exe
+          test -f out/Insightstream-win32-x64/resources/bin/page-dump.exe
           if [ -d out/Insightstream-win32-x64/resources/bin ]; then
             ls -la out/Insightstream-win32-x64/resources/bin
           fi

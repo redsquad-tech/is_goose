@@ -59,9 +59,16 @@ Workflow Windows-сборки:
 
 - скачивает `goosed-windows-x86_64.zip` из release репозитория `redsquad-tech/is_goosed`
 - распаковывает `goosed.exe` в `src/bin`
+- собирает `ddg-search.exe` и `page-dump.exe` через Go и тоже кладёт их в `src/bin`
 - собирает portable zip и `msi`
 
-По умолчанию используется тег `v0.1`. При ручном запуске workflow можно передать другой `goosed_version`, а для автосборки на `main` можно задать repository variable `GOOSED_VERSION`.
+Эти CLI-бинарники едут в `resources/bin` рядом с `goosed.exe`, поэтому встроенный backend может вызывать их через `developer.shell` и builtin skill `web-search` без отдельной установки на машине пользователя.
+
+Версия backend выбирается так:
+
+- если при ручном запуске workflow передан `goosed_version`, используется он
+- иначе, если задан repository variable `GOOSED_VERSION`, используется он
+- иначе workflow берёт **latest release tag** из репозитория `redsquad-tech/is_goosed`
 
 Если `redsquad-tech/is_goosed` приватный, в репозитории `is_goose` нужен GitHub Actions secret `IS_GOOSED_RELEASE_TOKEN` с доступом на чтение релизов/contents backend-репозитория.
 
