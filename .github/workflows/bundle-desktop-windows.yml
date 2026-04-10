@@ -44,6 +44,12 @@ jobs:
         with:
           go-version: '1.25.0'
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: 'x64'
+
       - name: Install desktop dependencies
         shell: bash
         run: npm ci
@@ -106,7 +112,7 @@ jobs:
       - name: Build bundled web search CLI tools
         shell: pwsh
         run: |
-          Write-Host "Building ddg-search.exe and page-dump.exe"
+          Write-Host "Building ddg-search.exe"
 
           $gopath = (go env GOPATH).Trim()
           if (-not $gopath) {
@@ -114,21 +120,47 @@ jobs:
           }
 
           go install github.com/Djarvur/ddg-search/cmd/ddg-search@latest
-          go install github.com/Djarvur/ddg-search/cmd/page-dump@latest
 
           $ddgSearch = Join-Path $gopath "bin/ddg-search.exe"
-          $pageDump = Join-Path $gopath "bin/page-dump.exe"
 
           if (-not (Test-Path $ddgSearch)) {
             throw "ddg-search.exe was not produced at $ddgSearch"
           }
 
-          if (-not (Test-Path $pageDump)) {
-            throw "page-dump.exe was not produced at $pageDump"
+          Copy-Item $ddgSearch "src/bin/ddg-search.exe" -Force
+          Get-ChildItem src/bin
+
+      - name: Build bundled Crawl4AI runtime
+        shell: pwsh
+        run: |
+          Write-Host "Building bundled Python runtime with Crawl4AI"
+
+          $pythonExe = (Get-Command python).Source
+          if (-not $pythonExe) {
+            throw "python executable not found after setup-python"
           }
 
-          Copy-Item $ddgSearch "src/bin/ddg-search.exe" -Force
-          Copy-Item $pageDump "src/bin/page-dump.exe" -Force
+          $pythonRoot = Split-Path $pythonExe -Parent
+          $runtimeDir = "src/bin/python-runtime"
+          $browserDir = "src/bin/ms-playwright"
+
+          Remove-Item $runtimeDir -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item $browserDir -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path "src/bin" | Out-Null
+          New-Item -ItemType Directory -Force -Path $browserDir | Out-Null
+
+          Copy-Item $pythonRoot $runtimeDir -Recurse -Force
+
+          & "$runtimeDir/python.exe" -m pip install --upgrade pip
+          & "$runtimeDir/python.exe" -m pip install "crawl4ai==0.8.6"
+
+          $resolvedBrowserDir = (Resolve-Path $browserDir).Path
+          $env:PLAYWRIGHT_BROWSERS_PATH = $resolvedBrowserDir
+          $env:PATCHRIGHT_BROWSERS_PATH = $resolvedBrowserDir
+
+          & "$runtimeDir/python.exe" -m playwright install chromium
+          & "$runtimeDir/python.exe" -m patchright install chromium
+
           Get-ChildItem src/bin
 
       - name: Install WiX Toolset
@@ -157,7 +189,9 @@ jobs:
           test -f out/make/wix/x64/Insightstream.msi
           test -f out/Insightstream-win32-x64/resources/bin/goosed.exe
           test -f out/Insightstream-win32-x64/resources/bin/ddg-search.exe
-          test -f out/Insightstream-win32-x64/resources/bin/page-dump.exe
+          test -f out/Insightstream-win32-x64/resources/bin/crwl.cmd
+          test -f out/Insightstream-win32-x64/resources/bin/python-runtime/python.exe
+          test -d out/Insightstream-win32-x64/resources/bin/ms-playwright
           if [ -d out/Insightstream-win32-x64/resources/bin ]; then
             ls -la out/Insightstream-win32-x64/resources/bin
           fi

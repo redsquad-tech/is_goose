@@ -361,6 +361,19 @@ const createChat = async (app: App, options: CreateChatOptions = {}) => {
   const { initialMessage, dir, resumeSessionId, viewType } = options;
   const settings = getSettings();
   const serverSecret = getServerSecret(settings);
+  const bundledBinDir =
+    process.platform === 'win32'
+      ? app.isPackaged
+        ? path.join(process.resourcesPath, 'bin')
+        : path.join(process.cwd(), 'src', 'bin')
+      : null;
+  const bundledWebToolEnv: Record<string, string | undefined> =
+    bundledBinDir && fsSync.existsSync(bundledBinDir)
+      ? {
+          GOOSE_WEB_SEARCH_DDG_BIN: path.join(bundledBinDir, 'ddg-search.exe'),
+          GOOSE_WEB_READER_CRAWL_BIN: path.join(bundledBinDir, 'crwl.cmd'),
+        }
+      : {};
 
   const goosedResult = await startGoosed({
     serverSecret,
@@ -368,6 +381,7 @@ const createChat = async (app: App, options: CreateChatOptions = {}) => {
     env: {
       GOOSE_PATH_ROOT: appConfig.GOOSE_PATH_ROOT as string | undefined,
       GOOSE_DISABLE_KEYRING: '1',
+      ...bundledWebToolEnv,
     },
     externalGoosed: settings.externalGoosed,
     isPackaged: app.isPackaged,

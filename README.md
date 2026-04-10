@@ -59,10 +59,17 @@ Workflow Windows-сборки:
 
 - скачивает `goosed-windows-x86_64.zip` из release репозитория `redsquad-tech/is_goosed`
 - распаковывает `goosed.exe` в `src/bin`
-- собирает `ddg-search.exe` и `page-dump.exe` через Go и тоже кладёт их в `src/bin`
+- собирает `ddg-search.exe` через Go и кладёт его в `src/bin`
+- собирает bundled Python 3.12 runtime в `src/bin/python-runtime`
+- устанавливает `crawl4ai==0.8.6` в этот runtime
+- скачивает браузерные бинарники Playwright/Patchright в `src/bin/ms-playwright`
+- добавляет Windows wrapper `crwl.cmd` в `src/bin` для запуска `crawl4ai` через bundled `python.exe`
 - собирает portable zip и `msi`
 
-Эти CLI-бинарники едут в `resources/bin` рядом с `goosed.exe`, поэтому встроенный backend может вызывать их через `developer.shell` и builtin skill `web-search` без отдельной установки на машине пользователя.
+Эти CLI-бинарники едут в `resources/bin` рядом с `goosed.exe`, поэтому встроенный backend может вызывать:
+
+- `ddg-search.exe` для `search_web`
+- `crwl.cmd` для `read_web_page`
 
 Версия backend выбирается так:
 
