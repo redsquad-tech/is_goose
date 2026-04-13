@@ -168,7 +168,7 @@ jobs:
         run: |
           Write-Host "Building bundled OCR runtime with Tesseract and pdftoppm"
 
-          choco install tesseract poppler --no-progress -y
+          choco install tesseract --no-progress -y
 
           $ocrDir = "src/bin/ocr-runtime"
           Remove-Item $ocrDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -190,43 +190,29 @@ jobs:
           $tesseractDir = Split-Path $tesseractExe -Parent
           Copy-Item "$tesseractDir\*" $ocrDir -Recurse -Force
 
-          $pdftoppmExe = $null
-          $popplerRootCandidates = @(
-            "C:\ProgramData\chocolatey\lib\poppler\tools",
-            "${env:ChocolateyInstall}\lib\poppler\tools"
-          ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
+          # Use prebuilt Poppler for Windows (contains pdftoppm.exe in Library/bin)
+          $popplerDownloadDir = "src/bin/_poppler-download"
+          Remove-Item $popplerDownloadDir -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $popplerDownloadDir | Out-Null
 
-          foreach ($root in $popplerRootCandidates) {
-            $candidate = (Get-ChildItem $root -Recurse -Filter "pdftoppm.exe" -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
-            if ($candidate) {
-              $pdftoppmExe = $candidate
-              break
-            }
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/oschwartz10612/poppler-windows/releases/latest" -Headers @{ "Accept" = "application/vnd.github+json" }
+          $asset = $release.assets | Where-Object { $_.name -match '^Release-.*\.zip$' } | Select-Object -First 1
+          if (-not $asset) {
+            throw "Unable to locate Poppler Windows zip asset in latest release"
           }
 
+          $popplerZip = Join-Path $popplerDownloadDir $asset.name
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $popplerZip
+          Expand-Archive -Path $popplerZip -DestinationPath $popplerDownloadDir -Force
+
+          $pdftoppmExe = (Get-ChildItem $popplerDownloadDir -Recurse -Filter "pdftoppm.exe" -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
           if (-not $pdftoppmExe) {
-            $wherePdftoppm = (where.exe pdftoppm.exe 2>$null | Select-Object -First 1)
-            if ($wherePdftoppm) {
-              $pdftoppmExe = $wherePdftoppm.Trim()
-            }
-          }
-          if (-not $pdftoppmExe) {
-            $pdftoppmCommand = Get-Command pdftoppm.exe -ErrorAction SilentlyContinue
-            if ($pdftoppmCommand -and $pdftoppmCommand.Source) {
-              $pdftoppmExe = $pdftoppmCommand.Source
-            }
-          }
-          if (-not $pdftoppmExe) {
-            Write-Host "Unable to locate pdftoppm.exe. Dumping poppler tools tree for diagnostics:"
-            foreach ($root in $popplerRootCandidates) {
-              Write-Host "Poppler root: $root"
-              Get-ChildItem $root -Recurse -ErrorAction SilentlyContinue | Select-Object -First 200 | ForEach-Object { Write-Host $_.FullName }
-            }
             throw "Unable to locate pdftoppm.exe after installation"
           }
 
           $popplerBinDir = Split-Path $pdftoppmExe -Parent
           Copy-Item "$popplerBinDir\*" $ocrDir -Recurse -Force
+          Remove-Item $popplerDownloadDir -Recurse -Force -ErrorAction SilentlyContinue
 
           if (-not (Test-Path "$ocrDir\tesseract.exe")) {
             throw "Bundled OCR runtime is missing tesseract.exe"
