@@ -190,14 +190,38 @@ jobs:
           $tesseractDir = Split-Path $tesseractExe -Parent
           Copy-Item "$tesseractDir\*" $ocrDir -Recurse -Force
 
-          $pdftoppmExe = (Get-ChildItem "C:\ProgramData\chocolatey\lib" -Recurse -Filter "pdftoppm.exe" -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+          $pdftoppmExe = $null
+          $popplerRootCandidates = @(
+            "C:\ProgramData\chocolatey\lib\poppler\tools",
+            "${env:ChocolateyInstall}\lib\poppler\tools"
+          ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
+
+          foreach ($root in $popplerRootCandidates) {
+            $candidate = (Get-ChildItem $root -Recurse -Filter "pdftoppm.exe" -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+            if ($candidate) {
+              $pdftoppmExe = $candidate
+              break
+            }
+          }
+
           if (-not $pdftoppmExe) {
-            $pdftoppmCommand = Get-Command pdftoppm -ErrorAction SilentlyContinue
-            if ($pdftoppmCommand) {
+            $wherePdftoppm = (where.exe pdftoppm.exe 2>$null | Select-Object -First 1)
+            if ($wherePdftoppm) {
+              $pdftoppmExe = $wherePdftoppm.Trim()
+            }
+          }
+          if (-not $pdftoppmExe) {
+            $pdftoppmCommand = Get-Command pdftoppm.exe -ErrorAction SilentlyContinue
+            if ($pdftoppmCommand -and $pdftoppmCommand.Source) {
               $pdftoppmExe = $pdftoppmCommand.Source
             }
           }
           if (-not $pdftoppmExe) {
+            Write-Host "Unable to locate pdftoppm.exe. Dumping poppler tools tree for diagnostics:"
+            foreach ($root in $popplerRootCandidates) {
+              Write-Host "Poppler root: $root"
+              Get-ChildItem $root -Recurse -ErrorAction SilentlyContinue | Select-Object -First 200 | ForEach-Object { Write-Host $_.FullName }
+            }
             throw "Unable to locate pdftoppm.exe after installation"
           }
 
