@@ -263,18 +263,13 @@ export function AppInner() {
     }
   }, []);
 
-  // Prevent default drag and drop behavior globally to avoid opening files in new windows
-  // but allow our React components to handle drops in designated areas
+  // Global drag/drop fallback:
+  // - prevent browser from navigating to dropped files
+  // - forward dropped files to React via custom event for the whole app window
   useEffect(() => {
     const preventDefaults = (e: globalThis.DragEvent) => {
-      // Only prevent default if we're not over a designated drop zone
-      const target = e.target as HTMLElement;
-      const isOverDropZone = target.closest('[data-drop-zone="true"]') !== null;
-
-      if (!isOverDropZone) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
+      e.preventDefault();
+      e.stopPropagation();
     };
 
     const handleDragOver = (e: globalThis.DragEvent) => {
@@ -284,13 +279,19 @@ export function AppInner() {
     };
 
     const handleDrop = (e: globalThis.DragEvent) => {
-      // Only prevent default if we're not over a designated drop zone
-      const target = e.target as HTMLElement;
-      const isOverDropZone = target.closest('[data-drop-zone="true"]') !== null;
+      // Always prevent browser default behavior for app drops
+      e.preventDefault();
+      e.stopPropagation();
 
-      if (!isOverDropZone) {
-        e.preventDefault();
-        e.stopPropagation();
+      const fileCount = e.dataTransfer?.files?.length ?? 0;
+
+      if (fileCount > 0) {
+        const files = Array.from(e.dataTransfer?.files || []);
+        window.dispatchEvent(
+          new CustomEvent(AppEvents.GLOBAL_FILE_DROP, {
+            detail: { files },
+          })
+        );
       }
     };
 

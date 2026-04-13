@@ -152,7 +152,7 @@ jobs:
           Copy-Item $pythonRoot $runtimeDir -Recurse -Force
 
           & "$runtimeDir/python.exe" -m pip install --upgrade pip
-          & "$runtimeDir/python.exe" -m pip install "crawl4ai==0.8.6"
+          & "$runtimeDir/python.exe" -m pip install "crawl4ai==0.8.6" "markitdown[all]==0.1.5"
 
           $resolvedBrowserDir = (Resolve-Path $browserDir).Path
           $env:PLAYWRIGHT_BROWSERS_PATH = $resolvedBrowserDir
@@ -162,6 +162,59 @@ jobs:
           & "$runtimeDir/python.exe" -m patchright install chromium
 
           Get-ChildItem src/bin
+
+      - name: Build bundled OCR runtime (Tesseract + Poppler)
+        shell: pwsh
+        run: |
+          Write-Host "Building bundled OCR runtime with Tesseract and pdftoppm"
+
+          choco install tesseract poppler --no-progress -y
+
+          $ocrDir = "src/bin/ocr-runtime"
+          Remove-Item $ocrDir -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $ocrDir | Out-Null
+
+          $tesseractExeCandidates = @(
+            "C:\Program Files\Tesseract-OCR\tesseract.exe",
+            "${env:ProgramFiles}\Tesseract-OCR\tesseract.exe",
+            "${env:ProgramFiles(x86)}\Tesseract-OCR\tesseract.exe"
+          )
+          $tesseractExe = $tesseractExeCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $tesseractExe) {
+            $tesseractExe = (Get-ChildItem "C:\ProgramData\chocolatey\lib" -Recurse -Filter "tesseract.exe" -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+          }
+          if (-not $tesseractExe) {
+            throw "Unable to locate tesseract.exe after installation"
+          }
+
+          $tesseractDir = Split-Path $tesseractExe -Parent
+          Copy-Item "$tesseractDir\*" $ocrDir -Recurse -Force
+
+          $pdftoppmExe = (Get-ChildItem "C:\ProgramData\chocolatey\lib" -Recurse -Filter "pdftoppm.exe" -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+          if (-not $pdftoppmExe) {
+            $pdftoppmCommand = Get-Command pdftoppm -ErrorAction SilentlyContinue
+            if ($pdftoppmCommand) {
+              $pdftoppmExe = $pdftoppmCommand.Source
+            }
+          }
+          if (-not $pdftoppmExe) {
+            throw "Unable to locate pdftoppm.exe after installation"
+          }
+
+          $popplerBinDir = Split-Path $pdftoppmExe -Parent
+          Copy-Item "$popplerBinDir\*" $ocrDir -Recurse -Force
+
+          if (-not (Test-Path "$ocrDir\tesseract.exe")) {
+            throw "Bundled OCR runtime is missing tesseract.exe"
+          }
+          if (-not (Test-Path "$ocrDir\pdftoppm.exe")) {
+            throw "Bundled OCR runtime is missing pdftoppm.exe"
+          }
+          if (-not (Test-Path "$ocrDir\tessdata\eng.traineddata")) {
+            throw "Bundled OCR runtime is missing tessdata/eng.traineddata"
+          }
+
+          Get-ChildItem $ocrDir
 
       - name: Install WiX Toolset
         shell: pwsh
@@ -190,6 +243,10 @@ jobs:
           test -f out/Insightstream-win32-x64/resources/bin/goosed.exe
           test -f out/Insightstream-win32-x64/resources/bin/ddg-search.exe
           test -f out/Insightstream-win32-x64/resources/bin/crwl.cmd
+          test -f out/Insightstream-win32-x64/resources/bin/markitdown.cmd
+          test -f out/Insightstream-win32-x64/resources/bin/ocr-runtime/tesseract.exe
+          test -f out/Insightstream-win32-x64/resources/bin/ocr-runtime/pdftoppm.exe
+          test -f out/Insightstream-win32-x64/resources/bin/ocr-runtime/tessdata/eng.traineddata
           test -f out/Insightstream-win32-x64/resources/bin/python-runtime/python.exe
           test -d out/Insightstream-win32-x64/resources/bin/ms-playwright
           if [ -d out/Insightstream-win32-x64/resources/bin ]; then

@@ -27,6 +27,52 @@ export interface UserInput {
   images: ImageData[];
 }
 
+function isLikelyAbsolutePathToken(token: string): boolean {
+  return /^(?:[A-Za-z]:\\|\/|~\/|\\\\).+/.test(token);
+}
+
+function getPathBasename(pathToken: string): string {
+  const trimmed = pathToken.trim().replace(/^["']|["']$/g, '');
+  const normalized = trimmed.replace(/\\/g, '/');
+  const parts = normalized.split('/').filter(Boolean);
+  return parts.length > 0 ? parts[parts.length - 1] : trimmed;
+}
+
+function formatUserTextForDisplay(text: string): string {
+  const raw = text.trim();
+  if (!raw) return raw;
+
+  const tokens = raw.split(/\s+/);
+  const trailingPathTokens: string[] = [];
+
+  for (let i = tokens.length - 1; i >= 0; i--) {
+    const token = tokens[i];
+    if (isLikelyAbsolutePathToken(token)) {
+      trailingPathTokens.push(token);
+      continue;
+    }
+    break;
+  }
+
+  if (trailingPathTokens.length === 0) {
+    return raw;
+  }
+
+  const pathCount = trailingPathTokens.length;
+  const visibleTokens = tokens.slice(0, tokens.length - pathCount);
+  const fileNames = trailingPathTokens.reverse().map(getPathBasename);
+  const attachmentNote =
+    fileNames.length === 1
+      ? `Файл: ${fileNames[0]}`
+      : `Файлы: ${fileNames.join(', ')}`;
+
+  if (visibleTokens.length === 0) {
+    return attachmentNote;
+  }
+
+  return `${visibleTokens.join(' ')}\n\n${attachmentNote}`;
+}
+
 export function createUserMessage(text: string, images?: ImageData[]): Message {
   const content: Message['content'] = [];
 
@@ -92,6 +138,10 @@ export function getTextAndImageContent(message: Message): {
     } else if (content.type === 'image') {
       imagePaths.push(`data:${content.mimeType};base64,${content.data}`);
     }
+  }
+
+  if (message.role === 'user') {
+    textContent = formatUserTextForDisplay(textContent);
   }
 
   return { textContent, imagePaths };

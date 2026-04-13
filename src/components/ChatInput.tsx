@@ -1,10 +1,9 @@
-import { AppEvents } from '../constants/events';
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { FolderDot, ScrollText } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/Tooltip';
 import { Button } from './ui/button';
 import Stop from './ui/Stop';
-import { Send, Close } from './icons';
+import { Attach, Send, Close } from './icons';
 import { ChatState } from '../types/chatState';
 import debounce from 'lodash/debounce';
 import { LocalMessageStorage } from '../utils/localMessageStorage';
@@ -16,20 +15,11 @@ import { detectInterruption } from '../utils/interruptionDetector';
 import { getSession, Message } from '../api';
 import { getInitialWorkingDir } from '../utils/workingDir';
 import { UserInput, ImageData } from '../types/message';
-import { compressImageDataUrl } from '../utils/conversionUtils';
-
-interface PastedImage {
-  id: string;
-  dataUrl: string;
-  isLoading: boolean;
-  error?: string;
-}
-
-const MAX_IMAGES_PER_MESSAGE = 10;
 
 // Constants for token and tool alerts
 const TOKEN_LIMIT_DEFAULT = 128000; // fallback for custom models that the backend doesn't know about
 const TOOLS_MAX_SUGGESTED = 60; // max number of tools before we show a warning
+const EVENT_HIDE_ALERT_POPOVER = 'hide-alert-popover';
 
 // Manual compact trigger message - must match backend constant
 const MANUAL_COMPACT_TRIGGER = '/compact';
@@ -72,7 +62,7 @@ export default function ChatInput({
   const [_value, setValue] = useState(initialValue);
   const [displayValue, setDisplayValue] = useState(initialValue); // For immediate visual feedback
   const [isFocused, setIsFocused] = useState(false);
-  const [pastedImages, setPastedImages] = useState<PastedImage[]>([]);
+  const [isFilePickerOpen, setIsFilePickerOpen] = useState(false);
 
   // Derived state - chatState != Idle means we're in some form of loading state
   const isLoading = chatState !== ChatState.Idle;
@@ -191,12 +181,10 @@ export default function ChatInput({
 
   const internalTextAreaRef = useRef<HTMLTextAreaElement>(null);
   const textAreaRef = inputRef || internalTextAreaRef;
-  const timeoutRefsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
   useEffect(() => {
     setValue(initialValue);
     setDisplayValue(initialValue);
-    setPastedImages([]);
     setHistoryIndex(-1);
     setIsInGlobalHistory(false);
     setHasUserTyped(false);
@@ -232,10 +220,6 @@ export default function ChatInput({
     }
   };
 
-  const handleRemovePastedImage = (idToRemove: string) => {
-    setPastedImages((currentImages) => currentImages.filter((img) => img.id !== idToRemove));
-  };
-
   useEffect(() => {
     if (textAreaRef.current) {
       textAreaRef.current.focus();
@@ -257,7 +241,7 @@ export default function ChatInput({
         showCompactButton: true,
         compactButtonDisabled: !totalTokens,
         onCompact: () => {
-          window.dispatchEvent(new CustomEvent(AppEvents.HIDE_ALERT_POPOVER));
+          window.dispatchEvent(new CustomEvent(EVENT_HIDE_ALERT_POPOVER));
           handleSubmit({ msg: MANUAL_COMPACT_TRIGGER, images: [] });
         },
         compactIcon: <ScrollText size={12} />,
@@ -279,14 +263,6 @@ export default function ChatInput({
   // Cleanup effect for component unmount - prevent memory leaks
   useEffect(() => {
     return () => {
-      // Clear all tracked timeouts
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      const timeouts = timeoutRefsRef.current;
-      timeouts.forEach((timeoutId) => {
-        window.clearTimeout(timeoutId);
-      });
-      timeouts.clear();
-
       // Clear alerts to prevent memory leaks
       clearAlerts();
     };
@@ -383,36 +359,8 @@ export default function ChatInput({
   };
 
   const convertImagesToImageData = useCallback((): ImageData[] => {
-    const pastedImageData: ImageData[] = pastedImages
-      .filter((img) => img.dataUrl && !img.error && !img.isLoading)
-      .map((img) => {
-        const matches = img.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-        if (matches) {
-          return {
-            data: matches[2],
-            mimeType: matches[1],
-          };
-        }
-        return null;
-      })
-      .filter((img): img is ImageData => img !== null);
-
-    const droppedImageData: ImageData[] = allDroppedFiles
-      .filter((file) => file.isImage && file.dataUrl && !file.error && !file.isLoading)
-      .map((file) => {
-        const matches = file.dataUrl!.match(/^data:([^;]+);base64,(.+)$/);
-        if (matches) {
-          return {
-            data: matches[2],
-            mimeType: matches[1],
-          };
-        }
-        return null;
-      })
-      .filter((img): img is ImageData => img !== null);
-
-    return [...pastedImageData, ...droppedImageData];
-  }, [pastedImages, allDroppedFiles]);
+    return [];
+  }, []);
 
   const appendDroppedFilePaths = useCallback(
     (text: string): string => {
@@ -432,7 +380,6 @@ export default function ChatInput({
   const clearInputState = useCallback(() => {
     setDisplayValue('');
     setValue('');
-    setPastedImages([]);
     if (onFilesProcessed && droppedFiles.length > 0) {
       onFilesProcessed();
     }
@@ -447,72 +394,17 @@ export default function ChatInput({
 
     if (imageFiles.length === 0) return;
 
-    // Check if adding these images would exceed the limit
-    if (pastedImages.length + imageFiles.length > MAX_IMAGES_PER_MESSAGE) {
-      // Show error message to user
-      setPastedImages((prev) => [
-        ...prev,
-        {
-          id: `error-${Date.now()}`,
-          dataUrl: '',
-          isLoading: false,
-          error: `Нельзя вставить ${imageFiles.length} изображений. Максимум на одно сообщение: ${MAX_IMAGES_PER_MESSAGE}. Сейчас уже добавлено: ${pastedImages.length}.`,
-        },
-      ]);
-
-      // Remove the error message after 5 seconds with cleanup tracking
-      const timeoutId = setTimeout(() => {
-        setPastedImages((prev) => prev.filter((img) => !img.id.startsWith('error-')));
-        timeoutRefsRef.current.delete(timeoutId);
-      }, 5000);
-      timeoutRefsRef.current.add(timeoutId);
-
-      return;
-    }
-
     evt.preventDefault();
-
-    // Process each image file
-    const newImages: PastedImage[] = [];
-
-    for (const file of imageFiles) {
-      const imageId = `img-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-
-      // Add the image with loading state
-      newImages.push({
-        id: imageId,
-        dataUrl: '',
-        isLoading: true,
-      });
-
-      // Process the image asynchronously
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const dataUrl = e.target?.result as string;
-        if (dataUrl) {
-          const compressedDataUrl = await compressImageDataUrl(dataUrl);
-          setPastedImages((prev) =>
-            prev.map((img) =>
-              img.id === imageId ? { ...img, dataUrl: compressedDataUrl, isLoading: false } : img
-            )
-          );
-        }
-      };
-      reader.onerror = () => {
-        console.error('Failed to read image file:', file.name);
-        setPastedImages((prev) =>
-          prev.map((img) =>
-            img.id === imageId
-              ? { ...img, error: 'Failed to read image file.', isLoading: false }
-              : img
-          )
-        );
-      };
-      reader.readAsDataURL(file);
-    }
-
-    // Add all new images to the existing list
-    setPastedImages((prev) => [...prev, ...newImages]);
+    const imagePlaceholders = imageFiles.map((file, index) => ({
+      id: `paste-image-disabled-${Date.now()}-${index}`,
+      path: '',
+      name: file.name || `image-${index + 1}`,
+      type: file.type || 'image/*',
+      isImage: false,
+      isLoading: false,
+      error: 'Загрузка изображений временно отключена',
+    }));
+    setLocalDroppedFiles((prev) => [...prev, ...imagePlaceholders]);
   };
 
   // Cleanup debounced functions on unmount
@@ -661,9 +553,7 @@ export default function ChatInput({
 
   const canSubmit =
     !isLoading &&
-    (displayValue.trim() ||
-      pastedImages.some((img) => img.dataUrl && !img.error && !img.isLoading) ||
-      allDroppedFiles.some((file) => !file.error && !file.isLoading));
+    (displayValue.trim() || allDroppedFiles.some((file) => !file.error && !file.isLoading));
 
   const performSubmit = useCallback(
     (text?: string) => {
@@ -783,11 +673,82 @@ export default function ChatInput({
     }
     const canSubmit =
       !isLoading &&
-      (displayValue.trim() ||
-        pastedImages.some((img) => img.dataUrl && !img.error && !img.isLoading) ||
-        allDroppedFiles.some((file) => !file.error && !file.isLoading));
+      (displayValue.trim() || allDroppedFiles.some((file) => !file.error && !file.isLoading));
     if (canSubmit) {
       performSubmit();
+    }
+  };
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = () => {
+    if (isFilePickerOpen) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsFilePickerOpen(true);
+    const file = files[0];
+    const isImage = file.type.startsWith('image/');
+
+    if (isImage) {
+      setLocalDroppedFiles((prev) => [
+        ...prev,
+        {
+          id: `attach-image-disabled-${Date.now()}`,
+          path: '',
+          name: file.name,
+          type: file.type,
+          isImage: false,
+          isLoading: false,
+          error: 'Загрузка изображений временно отключена',
+        },
+      ]);
+    } else {
+      const fromBridge = window.electron.getPathForFile(file);
+      const path =
+        (typeof fromBridge === 'string' && fromBridge.trim().length > 0
+          ? fromBridge
+          : (file as File & { path?: string }).path) || '';
+      if (!path.trim()) {
+        setLocalDroppedFiles((prev) => [
+          ...prev,
+          {
+            id: `attach-file-error-${Date.now()}`,
+            path: '',
+            name: file.name,
+            type: file.type,
+            isImage: false,
+            isLoading: false,
+            error: 'Не удалось получить путь к файлу',
+          },
+        ]);
+        setIsFilePickerOpen(false);
+        if (e.target) {
+          e.target.value = '';
+        }
+        return;
+      }
+      setLocalDroppedFiles((prev) => [
+        ...prev,
+        {
+          id: `attach-file-${Date.now()}`,
+          path,
+          name: file.name,
+          type: file.type,
+          isImage: false,
+          isLoading: false,
+        },
+      ]);
+    }
+
+    textAreaRef.current?.focus();
+    setIsFilePickerOpen(false);
+    if (e.target) {
+      e.target.value = '';
     }
   };
 
@@ -814,10 +775,8 @@ export default function ChatInput({
   };
 
   const hasSubmittableContent =
-    displayValue.trim() ||
-    pastedImages.some((img) => img.dataUrl && !img.error && !img.isLoading) ||
-    allDroppedFiles.some((file) => !file.error && !file.isLoading);
-  const isAnyImageLoading = pastedImages.some((img) => img.isLoading);
+    displayValue.trim() || allDroppedFiles.some((file) => !file.error && !file.isLoading);
+  const isAnyImageLoading = false;
   const isAnyDroppedFileLoading = allDroppedFiles.some((file) => file.isLoading);
 
   const isSubmitButtonDisabled =
@@ -994,48 +953,18 @@ export default function ChatInput({
         </div>
       </form>
 
-      {/* Combined files and images preview */}
-      {(pastedImages.length > 0 || allDroppedFiles.length > 0) && (
-        <div className="flex flex-wrap gap-2 p-4 mt-2 border-t border-border-primary">
-          {/* Render pasted images first */}
-          {pastedImages.map((img) => (
-            <div key={img.id} className="relative group w-20 h-20">
-              {img.dataUrl && (
-                <img
-                  src={img.dataUrl}
-                  alt={`Pasted image ${img.id}`}
-                  className={`w-full h-full object-cover rounded border ${img.error ? 'border-red-500' : 'border-border-primary'}`}
-                />
-              )}
-              {img.isLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded">
-                  <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-white"></div>
-                </div>
-              )}
-              {img.error && !img.isLoading && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-75 rounded p-1 text-center">
-                  <p className="text-red-400 text-[10px] leading-tight break-all">
-                    {img.error.substring(0, 50)}
-                  </p>
-                </div>
-              )}
-              {!img.isLoading && (
-                <Button
-                  type="button"
-                  shape="round"
-                  onClick={() => handleRemovePastedImage(img.id)}
-                  className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity z-10"
-                  aria-label="Remove image"
-                  variant="outline"
-                  size="xs"
-                >
-                  <Close />
-                </Button>
-              )}
-            </div>
-          ))}
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        onChange={handleFileInputChange}
+        disabled={isFilePickerOpen}
+      />
 
-          {/* Render dropped files after pasted images */}
+      {/* Files preview */}
+      {allDroppedFiles.length > 0 && (
+        <div className="flex flex-wrap gap-2 p-4 mt-2 border-t border-border-primary">
+          {/* Render dropped files */}
           {allDroppedFiles.map((file) => (
             <div key={file.id} className="relative group">
               {file.isImage ? (
@@ -1063,7 +992,11 @@ export default function ChatInput({
                 </div>
               ) : (
                 // File box preview
-                <div className="flex items-center gap-2 px-3 py-2 bg-bgSubtle border border-border-primary rounded-lg min-w-[120px] max-w-[200px]">
+                <div
+                  className={`flex items-center gap-2 px-3 py-2 bg-bgSubtle border rounded-lg min-w-[120px] max-w-[260px] ${
+                    file.error ? 'border-red-500' : 'border-border-primary'
+                  }`}
+                >
                   <div className="flex-shrink-0 w-8 h-8 bg-background-primary border border-border-primary rounded flex items-center justify-center text-xs font-mono text-text-secondary">
                     {file.name.split('.').pop()?.toUpperCase() || 'FILE'}
                   </div>
@@ -1071,7 +1004,13 @@ export default function ChatInput({
                     <p className="text-sm text-text-primary truncate" title={file.name}>
                       {file.name}
                     </p>
-                    <p className="text-xs text-text-secondary">{file.type || 'Unknown type'}</p>
+                    {file.error ? (
+                      <p className="text-xs text-red-500 truncate" title={file.error}>
+                        {file.error}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-text-secondary">{file.type || 'Unknown type'}</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -1101,6 +1040,22 @@ export default function ChatInput({
             {sessionWorkingDir ?? getInitialWorkingDir()}
           </div>
         </div>
+        <div className="w-px h-4 bg-border-primary mx-2" />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              onClick={handleFileSelect}
+              disabled={isFilePickerOpen}
+              variant="ghost"
+              size="sm"
+              className={`flex items-center justify-center text-text-primary/70 hover:text-text-primary text-xs transition-colors ${isFilePickerOpen ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <Attach className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Attach file</TooltipContent>
+        </Tooltip>
         <MentionPopover
           ref={mentionPopoverRef}
           isOpen={mentionPopover.isOpen}

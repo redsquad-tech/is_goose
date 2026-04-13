@@ -61,15 +61,19 @@ Workflow Windows-сборки:
 - распаковывает `goosed.exe` в `src/bin`
 - собирает `ddg-search.exe` через Go и кладёт его в `src/bin`
 - собирает bundled Python 3.12 runtime в `src/bin/python-runtime`
-- устанавливает `crawl4ai==0.8.6` в этот runtime
+- устанавливает `crawl4ai==0.8.6` и `markitdown[all]==0.1.5` в этот runtime
+- собирает bundled OCR runtime в `src/bin/ocr-runtime` (`tesseract.exe`, `pdftoppm.exe`, `tessdata`)
 - скачивает браузерные бинарники Playwright/Patchright в `src/bin/ms-playwright`
 - добавляет Windows wrapper `crwl.cmd` в `src/bin` для запуска `crawl4ai` через bundled `python.exe`
+- добавляет Windows wrapper `markitdown.cmd` в `src/bin` для запуска document-конвертации
 - собирает portable zip и `msi`
 
 Эти CLI-бинарники едут в `resources/bin` рядом с `goosed.exe`, поэтому встроенный backend может вызывать:
 
 - `ddg-search.exe` для `search_web`
 - `crwl.cmd` для `read_web_page`
+- `markitdown.cmd` для `read_document`
+- `ocr-runtime/tesseract.exe` + `ocr-runtime/pdftoppm.exe` для OCR fallback в `read_document` (PDF/image -> OCR)
 
 Версия backend выбирается так:
 

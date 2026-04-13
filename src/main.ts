@@ -372,6 +372,16 @@ const createChat = async (app: App, options: CreateChatOptions = {}) => {
       ? {
           GOOSE_WEB_SEARCH_DDG_BIN: path.join(bundledBinDir, 'ddg-search.exe'),
           GOOSE_WEB_READER_CRAWL_BIN: path.join(bundledBinDir, 'crwl.cmd'),
+          GOOSE_DOCUMENTS_READER_BIN: path.join(bundledBinDir, 'markitdown.cmd'),
+          GOOSE_DOCUMENTS_OCR_BACKEND: 'tesseract',
+          GOOSE_DOCUMENTS_OCR_BIN: path.join(bundledBinDir, 'ocr-runtime', 'tesseract.exe'),
+          GOOSE_DOCUMENTS_OCR_PDFTOPPM_BIN: path.join(
+            bundledBinDir,
+            'ocr-runtime',
+            'pdftoppm.exe'
+          ),
+          GOOSE_DOCUMENTS_OCR_LANG: 'rus+eng',
+          TESSDATA_PREFIX: path.join(bundledBinDir, 'ocr-runtime', 'tessdata'),
         }
       : {};
 
