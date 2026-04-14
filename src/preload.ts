@@ -56,12 +56,15 @@ type ElectronAPI = {
   platform: string;
   reactReady: () => void;
   getConfig: () => Record<string, unknown>;
+  directoryChooser: () => Promise<Electron.OpenDialogReturnValue>;
   logInfo: (txt: string) => void;
   showNotification: (data: NotificationData) => void;
   showMessageBox: (options: MessageBoxOptions) => Promise<MessageBoxResponse>;
   reloadApp: () => void;
   listFiles: (dirPath: string, extension?: string) => Promise<string[]>;
   getPathForFile: (file: File) => string;
+  openDirectoryInExplorer: (directoryPath: string) => Promise<boolean>;
+  addRecentDir: (dir: string) => Promise<boolean>;
   getSetting: <K extends SettingKey>(key: K) => Promise<Settings[K]>;
   setSetting: <K extends SettingKey>(key: K, value: Settings[K]) => Promise<void>;
   getSecretKey: () => Promise<string>;
@@ -87,6 +90,7 @@ const electronAPI: ElectronAPI = {
   platform: process.platform,
   reactReady: () => ipcRenderer.send('react-ready'),
   getConfig: () => config,
+  directoryChooser: () => ipcRenderer.invoke('directory-chooser'),
   logInfo: (txt: string) => ipcRenderer.send('logInfo', txt),
   showNotification: (data: NotificationData) => ipcRenderer.send('notify', data),
   showMessageBox: (options: MessageBoxOptions) => ipcRenderer.invoke('show-message-box', options),
@@ -94,6 +98,9 @@ const electronAPI: ElectronAPI = {
   listFiles: (dirPath: string, extension?: string) =>
     ipcRenderer.invoke('list-files', dirPath, extension),
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
+  openDirectoryInExplorer: (directoryPath: string) =>
+    ipcRenderer.invoke('open-directory-in-explorer', directoryPath),
+  addRecentDir: (dir: string) => ipcRenderer.invoke('add-recent-dir', dir),
   getSetting: async <K extends SettingKey>(key: K): Promise<Settings[K]> => {
     try {
       const localStorageKey = localStorageKeyMap[key];

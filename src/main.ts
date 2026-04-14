@@ -718,6 +718,26 @@ ipcMain.handle('open-external', async (_event, url: string) => {
   await shell.openExternal(url);
 });
 
+ipcMain.handle('directory-chooser', async () => {
+  return dialog.showOpenDialog({
+    properties: ['openDirectory', 'createDirectory'],
+    defaultPath: os.homedir(),
+  });
+});
+
+ipcMain.handle('add-recent-dir', async (_event, _dir: string) => {
+  return true;
+});
+
+ipcMain.handle('open-directory-in-explorer', async (_event, directoryPath: string) => {
+  try {
+    return (await shell.openPath(directoryPath)) === '';
+  } catch (error) {
+    console.error('Error opening directory in explorer:', error);
+    return false;
+  }
+});
+
 ipcMain.handle('get-setting', (_event, key: SettingKey) => {
   const settings = getSettings();
   return settings[key];
