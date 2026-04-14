@@ -7,6 +7,22 @@ on:
         description: 'Tag of redsquad-tech/is_goosed release to bundle (for example v0.3). Leave empty to use repo variable or latest release.'
         required: false
         default: ''
+      insightstream_provider:
+        description: 'Optional onboarding provider override (default: openai)'
+        required: false
+        default: 'openai'
+      insightstream_model:
+        description: 'Optional onboarding model override (default: compressa1)'
+        required: false
+        default: 'compressa1'
+      insightstream_host:
+        description: 'Optional onboarding host override (default: https://provider.redsquad.tech)'
+        required: false
+        default: 'https://provider.redsquad.tech'
+      insightstream_base_path:
+        description: 'Optional onboarding base path override (default: v1/responses)'
+        required: false
+        default: 'v1/responses'
   push:
     branches:
       - main
@@ -243,6 +259,15 @@ jobs:
 
       - name: Build Windows desktop bundle
         shell: bash
+        env:
+          VITE_INSIGHTSTREAM_PROVIDER: ${{ github.event.inputs.insightstream_provider || 'openai' }}
+          VITE_INSIGHTSTREAM_MODEL: ${{ github.event.inputs.insightstream_model || 'compressa1' }}
+          VITE_INSIGHTSTREAM_HOST: ${{ github.event.inputs.insightstream_host || 'https://provider.redsquad.tech' }}
+          VITE_INSIGHTSTREAM_BASE_PATH: ${{ github.event.inputs.insightstream_base_path || 'v1/responses' }}
+          GOOSE_INSIGHTSTREAM_PROVIDER: ${{ github.event.inputs.insightstream_provider || '' }}
+          GOOSE_INSIGHTSTREAM_MODEL: ${{ github.event.inputs.insightstream_model || '' }}
+          GOOSE_INSIGHTSTREAM_HOST: ${{ github.event.inputs.insightstream_host || '' }}
+          GOOSE_INSIGHTSTREAM_BASE_PATH: ${{ github.event.inputs.insightstream_base_path || '' }}
         run: npm run bundle:windows
 
       - name: Verify frontend bundle output

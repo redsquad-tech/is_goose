@@ -48,6 +48,7 @@ export default function ChatInput({
   sessionId,
   handleSubmit,
   chatState = ChatState.Idle,
+  setChatState,
   onStop,
   commandHistory = [],
   initialValue = '',

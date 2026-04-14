@@ -1,12 +1,12 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import ImagePreview from './ImagePreview';
 import { formatMessageTimestamp } from '../utils/timeUtils';
 import MarkdownContent from './MarkdownContent';
 import ToolCallWithResponse from './ToolCallWithResponse';
 import {
   getTextAndImageContent,
-  getReasoningContent,
   getToolRequests,
+  ToolRequestMessageContent,
   getToolResponses,
   getToolConfirmationContent,
   getElicitationContent,
@@ -30,6 +30,7 @@ interface GooseMessageProps {
   toolCallNotifications: Map<string, NotificationEvent[]>;
   append: (value: string) => void;
   isStreaming: boolean;
+  toolRequestsOverride?: ToolRequestMessageContent[];
   submitElicitationResponse?: (
     elicitationId: string,
     userData: Record<string, unknown>
@@ -43,13 +44,12 @@ export default function GooseMessage({
   toolCallNotifications,
   append,
   isStreaming,
+  toolRequestsOverride,
   submitElicitationResponse,
 }: GooseMessageProps) {
   const contentRef = useRef<HTMLDivElement | null>(null);
 
   let { textContent, imagePaths } = getTextAndImageContent(message);
-  const reasoningContent = getReasoningContent(message);
-
   const splitChainOfThought = (text: string): { displayText: string; cotText: string | null } => {
     const regex = /<think>([\s\S]*?)<\/think>/i;
     const match = text.match(regex);
@@ -69,7 +69,7 @@ export default function GooseMessage({
   const { displayText, cotText } = splitChainOfThought(textContent);
 
   const timestamp = useMemo(() => formatMessageTimestamp(message.created), [message.created]);
-  const toolRequests = getToolRequests(message);
+  const toolRequests = toolRequestsOverride ?? getToolRequests(message);
   const messageIndex = messages.findIndex((msg) => msg.id === message.id);
   const toolConfirmationContent = getToolConfirmationContent(message);
   const elicitationContent = getElicitationContent(message);
@@ -109,39 +109,33 @@ export default function GooseMessage({
 
   const toolResponsesMap = useMemo(() => {
     const responseMap = new Map();
+    const requestedIds = new Set(toolRequests.map((req) => req.id));
 
-    if (messageIndex !== undefined && messageIndex >= 0) {
-      for (let i = messageIndex + 1; i < messages.length; i++) {
-        const responses = getToolResponses(messages[i]);
-
-        for (const response of responses) {
-          const matchingRequest = toolRequests.find((req) => req.id === response.id);
-          if (matchingRequest) {
-            responseMap.set(response.id, response);
-          }
+    for (const msg of messages) {
+      const responses = getToolResponses(msg);
+      for (const response of responses) {
+        if (requestedIds.has(response.id)) {
+          responseMap.set(response.id, response);
         }
       }
     }
 
     return responseMap;
-  }, [messages, messageIndex, toolRequests]);
+  }, [messages, toolRequests]);
 
   const pendingConfirmationIds = getPendingToolConfirmationIds(messages);
+  const [showAllToolSteps, setShowAllToolSteps] = useState(false);
+
+  const visibleToolRequests = useMemo(() => {
+    if (showAllToolSteps || toolRequests.length <= 1) {
+      return toolRequests;
+    }
+    return [toolRequests[toolRequests.length - 1]];
+  }, [showAllToolSteps, toolRequests]);
 
   return (
     <div className="goose-message flex w-[90%] justify-start min-w-0">
       <div className="flex flex-col w-full min-w-0">
-        {reasoningContent && (
-          <details className="mb-2">
-            <summary className="cursor-pointer text-xs text-textSubtle select-none">
-              Show reasoning
-            </summary>
-            <div className="mt-2 text-sm">
-              <MarkdownContent content={reasoningContent} />
-            </div>
-          </details>
-        )}
-
         {cotText && (
           <details className="bg-background-secondary border border-border-primary rounded p-2 mb-2">
             <summary className="cursor-pointer text-sm text-text-secondary select-none">
@@ -189,8 +183,19 @@ export default function GooseMessage({
         {toolRequests.length > 0 && (
           <div className={cn(displayText && 'mt-2')}>
             <div className="relative flex flex-col w-full">
+              {toolRequests.length > 1 && (
+                <button
+                  type="button"
+                  className="w-fit mb-2 text-xs text-text-secondary hover:text-text-primary transition-colors"
+                  onClick={() => setShowAllToolSteps((prev) => !prev)}
+                >
+                  {showAllToolSteps
+                    ? `Скрыть шаги (${toolRequests.length})`
+                    : `Показать все шаги (${toolRequests.length})`}
+                </button>
+              )}
               <div className="flex flex-col gap-3">
-                {toolRequests.map((toolRequest) => {
+                {visibleToolRequests.map((toolRequest) => {
                   const hasResponse = toolResponsesMap.has(toolRequest.id);
                   const isPending = pendingConfirmationIds.has(toolRequest.id);
                   const confirmationContent = findConfirmationForToolAcrossMessages(toolRequest.id);

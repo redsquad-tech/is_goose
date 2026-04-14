@@ -26,7 +26,14 @@ import {
   CreditsExhaustedNotification,
   getCreditsExhaustedNotification,
 } from './context_management/CreditsExhaustedNotification';
-import { NotificationEvent } from '../types/message';
+import {
+  NotificationEvent,
+  getElicitationContent,
+  getReasoningContent,
+  getTextAndImageContent,
+  getToolConfirmationContent,
+  getToolRequests,
+} from '../types/message';
 import LoadingGoose from './LoadingGoose';
 import { ChatType } from '../types/chat';
 import { identifyConsecutiveToolCalls, isInChain } from '../utils/toolCallChaining';
@@ -181,6 +188,29 @@ export default function ProgressiveMessageList({
   // Detect tool call chains
   const toolCallChains = useMemo(() => identifyConsecutiveToolCalls(messages), [messages]);
 
+  const chainToolRequestsByLastIndex = useMemo(() => {
+    const map = new Map<number, ReturnType<typeof getToolRequests>>();
+    for (const chain of toolCallChains) {
+      if (chain.length === 0) {
+        continue;
+      }
+      const allRequests = chain.flatMap((idx) => getToolRequests(messages[idx]));
+      const lastIndex = chain[chain.length - 1];
+      map.set(lastIndex, allRequests);
+    }
+    return map;
+  }, [messages, toolCallChains]);
+
+  const chainNonLastIndices = useMemo(() => {
+    const indices = new Set<number>();
+    for (const chain of toolCallChains) {
+      for (let i = 0; i < chain.length - 1; i++) {
+        indices.add(chain[i]);
+      }
+    }
+    return indices;
+  }, [toolCallChains]);
+
   // Render messages up to the current rendered count
   const renderMessages = useCallback(() => {
     const messagesToRender = messages.slice(0, renderedCount);
@@ -216,6 +246,24 @@ export default function ProgressiveMessageList({
 
         const isUser = isUserMessage(message);
         const messageIsInChain = isInChain(index, toolCallChains);
+        const isNonLastChainMessage = chainNonLastIndices.has(index);
+        const toolRequestsOverride = isNonLastChainMessage
+          ? []
+          : chainToolRequestsByLastIndex.get(index);
+
+        if (!isUser && isNonLastChainMessage) {
+          const { textContent, imagePaths } = getTextAndImageContent(message);
+          const hasVisibleNonToolContent =
+            textContent.trim().length > 0 ||
+            imagePaths.length > 0 ||
+            Boolean(getReasoningContent(message)) ||
+            Boolean(getToolConfirmationContent(message)) ||
+            Boolean(getElicitationContent(message));
+
+          if (!hasVisibleNonToolContent) {
+            return null;
+          }
+        }
 
         return (
           <div
@@ -234,6 +282,7 @@ export default function ProgressiveMessageList({
                 messages={messages}
                 append={append}
                 toolCallNotifications={toolCallNotifications}
+                toolRequestsOverride={toolRequestsOverride}
                 isStreaming={
                   isStreamingMessage &&
                   !isUser &&

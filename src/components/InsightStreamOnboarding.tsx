@@ -5,10 +5,10 @@ import { Button } from './ui/button';
 import { useConfig } from './ConfigContext';
 import { setConfigProvider } from '../api';
 
-const INSIGHTSTREAM_PROVIDER = 'openai';
-const INSIGHTSTREAM_MODEL = 'compressa1';
-const INSIGHTSTREAM_HOST = 'http://bavadim.xyz:8000';
-const INSIGHTSTREAM_BASE_PATH = 'v1/responses';
+const DEFAULT_INSIGHTSTREAM_PROVIDER = 'openai';
+const DEFAULT_INSIGHTSTREAM_MODEL = 'compressa1';
+const DEFAULT_INSIGHTSTREAM_HOST = 'https://provider.redsquad.tech';
+const DEFAULT_INSIGHTSTREAM_BASE_PATH = 'v1/responses';
 
 interface InsightStreamOnboardingProps {
   onConfigured: () => void;
@@ -22,6 +22,30 @@ export default function InsightStreamOnboarding({
   const [apiKey, setApiKey] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const configuredProvider = useMemo(() => {
+    const appConfigValue = String(window.appConfig?.get('INSIGHTSTREAM_PROVIDER') ?? '').trim();
+    return (
+      appConfigValue ||
+      import.meta.env.VITE_INSIGHTSTREAM_PROVIDER ||
+      DEFAULT_INSIGHTSTREAM_PROVIDER
+    );
+  }, []);
+  const configuredModel = useMemo(() => {
+    const appConfigValue = String(window.appConfig?.get('INSIGHTSTREAM_MODEL') ?? '').trim();
+    return appConfigValue || import.meta.env.VITE_INSIGHTSTREAM_MODEL || DEFAULT_INSIGHTSTREAM_MODEL;
+  }, []);
+  const configuredHost = useMemo(() => {
+    const appConfigValue = String(window.appConfig?.get('INSIGHTSTREAM_HOST') ?? '').trim();
+    return appConfigValue || import.meta.env.VITE_INSIGHTSTREAM_HOST || DEFAULT_INSIGHTSTREAM_HOST;
+  }, []);
+  const configuredBasePath = useMemo(() => {
+    const appConfigValue = String(window.appConfig?.get('INSIGHTSTREAM_BASE_PATH') ?? '').trim();
+    return (
+      appConfigValue ||
+      import.meta.env.VITE_INSIGHTSTREAM_BASE_PATH ||
+      DEFAULT_INSIGHTSTREAM_BASE_PATH
+    );
+  }, []);
 
   const isSubmitDisabled = useMemo(() => isSaving || apiKey.trim().length === 0, [apiKey, isSaving]);
 
@@ -38,15 +62,15 @@ export default function InsightStreamOnboarding({
     setError(null);
 
     try {
-      await upsert('GOOSE_PROVIDER', INSIGHTSTREAM_PROVIDER, false);
-      await upsert('GOOSE_MODEL', INSIGHTSTREAM_MODEL, false);
-      await upsert('OPENAI_HOST', INSIGHTSTREAM_HOST, false);
-      await upsert('OPENAI_BASE_PATH', INSIGHTSTREAM_BASE_PATH, false);
+      await upsert('GOOSE_PROVIDER', configuredProvider, false);
+      await upsert('GOOSE_MODEL', configuredModel, false);
+      await upsert('OPENAI_HOST', configuredHost, false);
+      await upsert('OPENAI_BASE_PATH', configuredBasePath, false);
       await upsert('OPENAI_API_KEY', trimmedKey, true);
       await setConfigProvider({
         body: {
-          provider: INSIGHTSTREAM_PROVIDER,
-          model: INSIGHTSTREAM_MODEL,
+          provider: configuredProvider,
+          model: configuredModel,
         },
         throwOnError: true,
       });

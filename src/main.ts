@@ -308,6 +308,15 @@ const getBundledConfig = (): BundledConfig => {
 const { defaultProvider, defaultModel, predefinedModels, baseUrlShare, version } =
   getBundledConfig();
 
+const insightstreamModelFromEnv =
+  process.env.GOOSE_INSIGHTSTREAM_MODEL ?? process.env.INSIGHTSTREAM_MODEL;
+const insightstreamProviderFromEnv =
+  process.env.GOOSE_INSIGHTSTREAM_PROVIDER ?? process.env.INSIGHTSTREAM_PROVIDER;
+const insightstreamHostFromEnv =
+  process.env.GOOSE_INSIGHTSTREAM_HOST ?? process.env.INSIGHTSTREAM_HOST;
+const insightstreamBasePathFromEnv =
+  process.env.GOOSE_INSIGHTSTREAM_BASE_PATH ?? process.env.INSIGHTSTREAM_BASE_PATH;
+
 const resolveGoosePathRoot = (): string | undefined => {
   const pathRoot = process.env.GOOSE_PATH_ROOT?.trim();
   if (pathRoot) {
@@ -343,6 +352,10 @@ let appConfig = {
   GOOSE_WORKING_DIR: '',
   // If GOOSE_ALLOWLIST_WARNING env var is not set, defaults to false (strict blocking mode)
   GOOSE_ALLOWLIST_WARNING: process.env.GOOSE_ALLOWLIST_WARNING === 'true',
+  INSIGHTSTREAM_PROVIDER: insightstreamProviderFromEnv,
+  INSIGHTSTREAM_MODEL: insightstreamModelFromEnv,
+  INSIGHTSTREAM_HOST: insightstreamHostFromEnv,
+  INSIGHTSTREAM_BASE_PATH: insightstreamBasePathFromEnv,
 };
 
 const windowMap = new Map<number, BrowserWindow>();
