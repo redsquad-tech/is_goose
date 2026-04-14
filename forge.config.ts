@@ -1,6 +1,7 @@
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 const { resolve } = require('path');
+const fs = require('fs');
 
 let cfg = {
   asar: true,
@@ -77,6 +78,12 @@ module.exports = {
         shortcutFolderName: 'Insightstream',
         shortcutName: 'Insightstream',
         programFilesFolderName: 'Insightstream',
+        beforeCreate: async (creator) => {
+          creator.wixTemplate = fs.readFileSync(
+            resolve(__dirname, 'scripts/wix/wix-no-desktop-shortcut.xml'),
+            'utf8',
+          );
+        },
       },
     },
     {
